@@ -1,0 +1,8 @@
+[licenses]
+copyleft = "deny"
+unused-allowed-license = "warn"
+allow = [
+  "MIT",
+  "Unicode-DFS-2016",
+  "Apache-2.0 WITH LLVM-exception",
+]

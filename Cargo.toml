@@ -1,0 +1,19 @@
+[package]
+name = "shackle"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+env_logger = "0.10"
+async-std = "1.12.0"
+
+[dependencies.iced]
+git = "https://github.com/pop-os/iced.git"
+default-features = false
+features = ["async-std", "wayland", "debug", "a11y"]
+rev = "51723e87f7de6f9ce8943c28acd0ab62270675f6"
+
+[dependencies.iced_runtime]
+git = "https://github.com/pop-os/iced.git"
+rev = "51723e87f7de6f9ce8943c28acd0ab62270675f6"
