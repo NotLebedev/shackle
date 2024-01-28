@@ -5,8 +5,8 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-env_logger = "0.10"
-async-std = "1.12.0"
+log = "0.4.20"
+env_logger = "0.11.1"
 
 [dependencies.iced]
 git = "https://github.com/pop-os/iced.git"
