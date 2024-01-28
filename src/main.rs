@@ -1,3 +1,6 @@
+mod signal_handler;
+
+use crate::signal_handler::signal_command;
 use iced::event::listen_raw;
 use iced::wayland::session_lock;
 use iced::widget::{button, column, container};
@@ -56,6 +59,9 @@ impl Application for Locker {
                     _ => {}
                 },
                 WaylandEvent::SessionLock(evt) => match evt {
+                    SessionLockEvent::Locked => {
+                        return signal_command();
+                    }
                     SessionLockEvent::Unlocked => {
                         info!("Session unlocked. Exiting.");
                         std::process::exit(0);
@@ -65,7 +71,7 @@ impl Application for Locker {
                 _ => {}
             },
             Message::Unlock => {
-                info!("Unlock event. Unlocking session.");
+                info!("Unlocking session.");
                 return session_lock::unlock();
             }
             Message::Ignore => {}
