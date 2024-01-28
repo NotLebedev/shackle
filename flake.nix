@@ -98,6 +98,10 @@
             rust-analyzer
             dbus-codegen-rust
           ];
+
+          # Convinient logging for develpment
+          RUST_BACKTRACE = 1;
+          RUST_LOG = "info";
         };
       });
 }
