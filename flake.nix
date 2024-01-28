@@ -1,9 +1,8 @@
 {
-  description = "Build a cargo project";
+  description = "Wayland locker with some features";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-
     crane = {
       url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -11,7 +10,7 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { nixpkgs, crane, flake-utils, ... }:
+  outputs = { self, nixpkgs, crane, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -26,13 +25,17 @@
           strictDeps = true;
 
           buildInputs = with pkgs; [
+            libgcc
             libxkbcommon
-            wayland
+          ];
+
+          runtimeDependencies = with pkgs; [
+            wayland # sctk loads libwayland during runtime
           ];
 
           nativeBuildInputs = with pkgs; [
             pkg-config
-            gobject-introspection
+            autoPatchelfHook # Add runtimeDependencies to rpath
           ];
         };
 
@@ -73,10 +76,6 @@
             inherit src;
           };
 
-          my-crate-deny = craneLib.cargoDeny {
-            inherit src;
-          };
-
           my-crate-nextest = craneLib.cargoNextest (commonArgs // {
             inherit cargoArtifacts;
             partitions = 1;
@@ -93,17 +92,12 @@
         };
 
         devShells.default = craneLib.devShell {
-          # checks = self.checks.${system};
+          checks = self.checks.${system};
 
           packages = with pkgs; [
             rust-analyzer
             dbus-codegen-rust
-            pkg-config
-            libxkbcommon
-            wayland
           ];
-
-          LD_LIBRARY_PATH = "${pkgs.wayland}/lib/";
         };
       });
 }
