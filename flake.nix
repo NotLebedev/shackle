@@ -20,6 +20,7 @@
         craneLib = crane.lib.${system};
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
+        llvm = pkgs.llvmPackages_17;
         commonArgs = {
           inherit src;
           strictDeps = true;
@@ -27,6 +28,8 @@
           buildInputs = with pkgs; [
             libgcc
             libxkbcommon
+            pam
+            llvm.libcxx.dev
           ];
 
           runtimeDependencies = with pkgs; [
@@ -37,6 +40,11 @@
             pkg-config
             autoPatchelfHook # Add runtimeDependencies to rpath
           ];
+
+          # Help bindgen find libclang.so
+          LIBCLANG_PATH = "${llvm.libclang.lib}/lib";
+          # Help bindgen find headers
+          CPATH = "${pkgs.pam}/include:${pkgs.glibc.dev}/include:${llvm.libclang.lib}/lib/clang/17/include";
         };
 
         # See https://github.com/diwic/dbus-rs/tree/master/dbus-codegen
