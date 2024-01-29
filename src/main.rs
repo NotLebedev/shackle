@@ -1,16 +1,18 @@
+mod auth;
 mod signal_handler;
 
 use crate::signal_handler::signal_command;
+use auth::check_password;
 use iced::event::listen_raw;
 use iced::wayland::session_lock;
-use iced::widget::{button, column, container};
-use iced::Length;
+use iced::widget::{button, column, container, text_input};
 use iced::{
     event::wayland::{Event as WaylandEvent, OutputEvent, SessionLockEvent},
     wayland::InitialSurface,
     widget::text,
     window, Application, Command, Element, Subscription, Theme,
 };
+use iced::{theme, Length};
 use iced_runtime::window::Id as SurfaceId;
 use log::info;
 
@@ -25,13 +27,22 @@ fn main() {
 }
 
 #[derive(Debug, Clone, Default)]
-struct Locker {}
+struct Locker {
+    password: String,
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
     WaylandEvent(WaylandEvent),
+    PasswordInput(PasswordInput),
     Unlock,
     Ignore,
+}
+
+#[derive(Debug, Clone)]
+pub enum PasswordInput {
+    Value(String),
+    Submit,
 }
 
 impl Application for Locker {
@@ -41,7 +52,7 @@ impl Application for Locker {
     type Theme = Theme;
 
     fn new(_flags: ()) -> (Locker, Command<Self::Message>) {
-        (Locker {}, session_lock::lock())
+        (Locker::default(), session_lock::lock())
     }
 
     fn title(&self, _id: window::Id) -> String {
@@ -70,6 +81,18 @@ impl Application for Locker {
                 },
                 _ => {}
             },
+            Message::PasswordInput(input) => match input {
+                PasswordInput::Value(val) => self.password = val,
+                PasswordInput::Submit => {
+                    info!("Checking password \"{}\"", self.password);
+                    if check_password(&self.password) {
+                        info!("Password valid. Unlocking session.");
+                        return session_lock::unlock();
+                    } else {
+                        info!("Password invalid.");
+                    }
+                }
+            },
             Message::Unlock => {
                 info!("Unlocking session.");
                 return session_lock::unlock();
@@ -81,12 +104,20 @@ impl Application for Locker {
 
     fn view(&self, _id: window::Id) -> Element<Self::Message> {
         let unlock_button = button(text("Unlock")).on_press(Message::Unlock);
-        container(column![unlock_button])
-            .center_x()
-            .center_y()
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+        let password_input = text_input("", &self.password)
+            .password()
+            .on_input(|val| Message::PasswordInput(PasswordInput::Value(val)))
+            .on_submit(Message::PasswordInput(PasswordInput::Submit));
+        container(
+            column![password_input, unlock_button]
+                .align_items(iced::Alignment::Center)
+                .max_width(800),
+        )
+        .center_x()
+        .center_y()
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .into()
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
@@ -101,6 +132,12 @@ impl Application for Locker {
     }
 
     fn theme(&self, _id: SurfaceId) -> Self::Theme {
-        Theme::Dark
+        Theme::custom(theme::Palette {
+            background: iced::Color::from_rgb8(0x1a, 0x1b, 0x26),
+            text: iced::Color::from_rgb8(0xc0, 0xca, 0xf5),
+            primary: iced::Color::from_rgb8(0x2a, 0xc3, 0xde),
+            success: iced::Color::from_rgb8(0x9e, 0xce, 0x6a),
+            danger: iced::Color::from_rgb8(0xdb, 0x4b, 0x4b),
+        })
     }
 }

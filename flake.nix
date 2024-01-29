@@ -17,6 +17,8 @@
           inherit system;
         };
 
+        inherit (pkgs) lib;
+
         craneLib = crane.lib.${system};
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
@@ -29,7 +31,6 @@
             libgcc
             libxkbcommon
             pam
-            llvm.libcxx.dev
           ];
 
           runtimeDependencies = with pkgs; [
@@ -44,7 +45,11 @@
           # Help bindgen find libclang.so
           LIBCLANG_PATH = "${llvm.libclang.lib}/lib";
           # Help bindgen find headers
-          CPATH = "${pkgs.pam}/include:${pkgs.glibc.dev}/include:${llvm.libclang.lib}/lib/clang/17/include";
+          CPATH = lib.strings.concatStringsSep ":" [
+            "${pkgs.pam}/include"
+            "${pkgs.glibc.dev}/include"
+            "${llvm.libclang.lib}/lib/clang/17/include"
+          ];
         };
 
         # See https://github.com/diwic/dbus-rs/tree/master/dbus-codegen
@@ -91,9 +96,7 @@
           });
         };
 
-        packages = {
-          default = my-crate;
-        };
+        packages.default = my-crate;
 
         apps.default = flake-utils.lib.mkApp {
           drv = my-crate;
