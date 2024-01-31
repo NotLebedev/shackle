@@ -30,6 +30,7 @@ fn main() {
 #[derive(Debug, Clone, Default)]
 struct Locker {
     password: String,
+    validating_password: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -84,17 +85,24 @@ impl Application for Locker {
                 _ => {}
             },
             Message::PasswordInput(input) => match input {
-                PasswordInput::Value(val) => self.password = val,
+                PasswordInput::Value(val) => {
+                    if !self.validating_password {
+                        self.password = val
+                    }
+                }
                 PasswordInput::Submit => {
-                    info!("Checking password \"{}\"", self.password);
+                    info!("Checking password.");
+                    self.validating_password = true;
                     return start_password_check(&self.password);
                 }
             },
             Message::WrongPassword => {
                 self.password = "".into();
+                self.validating_password = false;
             }
             Message::Unlock => {
                 info!("Unlocking session.");
+                self.validating_password = false;
                 return session_lock::unlock();
             }
             Message::Ignore => {}
