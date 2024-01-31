@@ -1,6 +1,7 @@
 mod auth;
 mod signal_handler;
 
+use crate::auth::start_password_check;
 use crate::signal_handler::signal_command;
 use auth::check_password;
 use iced::event::listen_raw;
@@ -36,6 +37,7 @@ pub enum Message {
     WaylandEvent(WaylandEvent),
     PasswordInput(PasswordInput),
     Unlock,
+    WrongPassword,
     Ignore,
 }
 
@@ -85,14 +87,12 @@ impl Application for Locker {
                 PasswordInput::Value(val) => self.password = val,
                 PasswordInput::Submit => {
                     info!("Checking password \"{}\"", self.password);
-                    if check_password(&self.password) {
-                        info!("Password valid. Unlocking session.");
-                        return session_lock::unlock();
-                    } else {
-                        info!("Password invalid.");
-                    }
+                    return start_password_check(&self.password);
                 }
             },
+            Message::WrongPassword => {
+                self.password = "".into();
+            }
             Message::Unlock => {
                 info!("Unlocking session.");
                 return session_lock::unlock();
