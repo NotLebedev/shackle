@@ -5,6 +5,7 @@ use crate::auth::start_password_check;
 use crate::signal_handler::signal_command;
 use auth::check_password;
 use iced::event::listen_raw;
+use iced::id::Id;
 use iced::wayland::session_lock;
 use iced::widget::{button, column, container, text_input};
 use iced::{
@@ -16,6 +17,9 @@ use iced::{
 use iced::{theme, Length};
 use iced_runtime::window::Id as SurfaceId;
 use log::info;
+use once_cell::sync::Lazy;
+
+static PASSWORD_INPUT_ID: Lazy<Id> = Lazy::new(Id::unique);
 
 fn main() {
     let settings = iced::Settings {
@@ -80,6 +84,9 @@ impl Application for Locker {
                         info!("Session unlocked. Exiting.");
                         std::process::exit(0);
                     }
+                    SessionLockEvent::Focused(..) => {
+                        return text_input::focus(PASSWORD_INPUT_ID.clone());
+                    }
                     _ => {}
                 },
                 _ => {}
@@ -114,8 +121,10 @@ impl Application for Locker {
         let unlock_button = button(text("Unlock")).on_press(Message::Unlock);
         let password_input = text_input("", &self.password)
             .password()
+            .id(PASSWORD_INPUT_ID.clone())
             .on_input(|val| Message::PasswordInput(PasswordInput::Value(val)))
             .on_submit(Message::PasswordInput(PasswordInput::Submit));
+
         container(
             column![password_input, unlock_button]
                 .align_items(iced::Alignment::Center)
