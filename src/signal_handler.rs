@@ -1,7 +1,7 @@
 use log::info;
 use tokio::signal::unix::signal;
 
-use crate::Message;
+use crate::app::Message;
 
 enum SignalResult {
     Recieved,

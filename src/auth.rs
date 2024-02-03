@@ -1,7 +1,8 @@
-use log::info;
-use users::get_current_username;
+use std::convert::identity;
 
-use crate::Message;
+use log::info;
+
+use crate::app::Message;
 
 pub async fn check_password(password: String) -> Message {
     let Ok(mut client) = pam::Client::with_password("shackle") else {
@@ -9,15 +10,17 @@ pub async fn check_password(password: String) -> Message {
         return Message::Ignore;
     };
 
-    let Some(user) = get_current_username() else {
+    let Some(user) = users::get_current_username() else {
         info!("Failed to get current user name. Session won't be unlocked.");
         return Message::Ignore;
     };
 
     info!("Current user is \"{}\".", user.to_string_lossy());
+
     client
         .conversation_mut()
         .set_credentials(user.to_string_lossy(), password);
+
     match client.authenticate() {
         Ok(_) => {
             info!("Password correct.");
@@ -31,5 +34,5 @@ pub async fn check_password(password: String) -> Message {
 }
 
 pub fn start_password_check(password: &String) -> iced::Command<Message> {
-    return iced::Command::perform(check_password(password.clone()), |m| m);
+    return iced::Command::perform(check_password(password.clone()), identity);
 }
