@@ -1,8 +1,8 @@
 use iced::{
     event::wayland::{self},
     theme::Palette,
-    widget::{button, column, container, text, text_input},
-    window, Application, Element, Length, Settings,
+    widget::text_input,
+    window, Application, Element, Settings,
 };
 use iced_runtime::Command;
 use log::info;
@@ -11,9 +11,9 @@ use crate::{auth, signal_handler};
 
 #[derive(Debug, Clone)]
 pub struct App {
-    password: String,
-    validating_password: bool,
-    password_input: iced::id::Id,
+    pub password: String,
+    pub validating_password: bool,
+    pub password_input: iced::id::Id,
 }
 
 #[derive(Debug, Clone)]
@@ -116,23 +116,7 @@ impl Application for App {
     }
 
     fn view(&self, _id: window::Id) -> Element<Self::Message> {
-        let unlock_button = button(text("Unlock")).on_press(Message::Unlock);
-        let password_input = text_input("", &self.password)
-            .password()
-            .id(self.password_input.clone())
-            .on_input(|val| Message::PasswordInput(PasswordInput::Value(val)))
-            .on_submit(Message::PasswordInput(PasswordInput::Submit));
-
-        container(
-            column![password_input, unlock_button]
-                .align_items(iced::Alignment::Center)
-                .max_width(800),
-        )
-        .center_x()
-        .center_y()
-        .height(Length::Fill)
-        .width(Length::Fill)
-        .into()
+        self.view().into()
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
