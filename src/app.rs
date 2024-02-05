@@ -1,18 +1,21 @@
+use std::{convert::identity, path::Path};
+
 use iced::{
     event::wayland::{self},
     theme::Palette,
-    widget::text_input,
+    widget::{image, text_input},
     window, Application, Element, Settings,
 };
 use iced_runtime::Command;
 use log::info;
 
-use crate::{auth, signal_handler};
+use crate::{auth, signal_handler, user_image};
 
 #[derive(Debug, Clone)]
 pub struct App {
     pub password: String,
     pub validating_password: bool,
+    pub user_image: Option<image::Handle>,
     pub password_input: iced::id::Id,
 }
 
@@ -20,6 +23,7 @@ pub struct App {
 pub enum Message {
     WaylandEvent(wayland::Event),
     PasswordInput(PasswordInput),
+    UserImageLoaded(image::Handle),
     Unlock,
     WrongPassword,
     Ignore,
@@ -52,6 +56,7 @@ impl Application for App {
                 password_input: iced::id::Id::unique(),
                 password: Default::default(),
                 validating_password: false,
+                user_image: None,
             },
             iced::wayland::session_lock::lock(),
         )
@@ -76,7 +81,10 @@ impl Application for App {
                 },
                 wayland::Event::SessionLock(evt) => match evt {
                     wayland::SessionLockEvent::Locked => {
-                        return signal_handler::signal_command();
+                        return iced::Command::batch([
+                            signal_handler::signal_command(),
+                            iced::Command::perform(user_image::load(), identity),
+                        ]);
                     }
                     wayland::SessionLockEvent::Unlocked => {
                         info!("Session unlocked. Exiting.");
@@ -92,7 +100,7 @@ impl Application for App {
             Message::PasswordInput(input) => match input {
                 PasswordInput::Value(val) => {
                     if !self.validating_password {
-                        self.password = val
+                        self.password = val;
                     }
                 }
                 PasswordInput::Submit => {
@@ -110,13 +118,16 @@ impl Application for App {
                 self.validating_password = false;
                 return iced::wayland::session_lock::unlock();
             }
+            Message::UserImageLoaded(image) => {
+                self.user_image = Some(image);
+            }
             Message::Ignore => {}
         }
         Command::none()
     }
 
     fn view(&self, _id: window::Id) -> Element<Self::Message> {
-        self.view().into()
+        self.view()
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {

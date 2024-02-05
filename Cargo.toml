@@ -7,15 +7,16 @@ license = "MIT"
 [dependencies]
 log = "0.4.20"
 env_logger = "0.11.1"
-tokio = { version = "1.35.1", features = ["signal"] }
+tokio = { version = "1.35.1", features = ["signal", "fs"] }
 pam = "0.8.0"
 users = "0.11.0"
+home = "0.5.9"
 once_cell = "1.19.0"
 
 [dependencies.iced]
 git = "https://github.com/pop-os/iced.git"
 default-features = false
-features = ["tokio", "wayland", "debug", "a11y"]
+features = ["tokio", "wayland", "debug", "a11y", "image"]
 rev = "51723e87f7de6f9ce8943c28acd0ab62270675f6"
 
 [dependencies.iced_runtime]
