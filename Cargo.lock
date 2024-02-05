@@ -3079,7 +3079,6 @@ dependencies = [
  "iced",
  "iced_runtime",
  "log",
- "once_cell",
  "pam",
  "tokio",
  "users 0.11.0",
