@@ -1,9 +1,9 @@
-use std::{convert::identity, path::Path};
+use std::convert::identity;
 
 use iced::{
     event::wayland::{self},
     theme::Palette,
-    widget::{image, text_input},
+    widget::{image, svg, text_input},
     window, Application, Element, Settings,
 };
 use iced_runtime::Command;
@@ -16,6 +16,7 @@ pub struct App {
     pub password: String,
     pub validating_password: bool,
     pub user_image: Option<image::Handle>,
+    pub placeholder_user_image: svg::Handle,
     pub password_input: iced::id::Id,
 }
 
@@ -57,6 +58,7 @@ impl Application for App {
                 password: Default::default(),
                 validating_password: false,
                 user_image: None,
+                placeholder_user_image: user_image::placeholder(),
             },
             iced::wayland::session_lock::lock(),
         )

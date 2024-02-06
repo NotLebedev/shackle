@@ -1,5 +1,6 @@
 use iced::{
-    widget::{button, column, container, image, text, text_input},
+    color, theme,
+    widget::{button, column, container, image, svg, text, text_input},
     Application, Background, BorderRadius, Color, Length,
 };
 
@@ -28,10 +29,10 @@ impl App {
                 self.password_input(),
                 self.unlock_button(),
             ]
-            .spacing(10)
+            .spacing(30)
             .align_items(iced::Alignment::Center),
         )
-        .padding(100)
+        .padding([50, 100])
         .max_width(600)
         .style(|_: &_| container::Appearance {
             background: Some(Background::Color(Color::from_rgb8(0x1a, 0x1b, 0x26))),
@@ -62,7 +63,13 @@ impl App {
                 .height(100)
                 .into()
         } else {
-            text("No user image").into()
+            svg(self.placeholder_user_image.clone())
+                .width(100)
+                .height(100)
+                .style(theme::Svg::custom_fn(|_theme| svg::Appearance {
+                    color: Some(color!(0x7aa2f7)),
+                }))
+                .into()
         }
     }
 }
