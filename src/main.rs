@@ -3,6 +3,7 @@ use iced::Application;
 
 pub mod app;
 pub mod auth;
+pub mod dbus;
 pub mod signal_handler;
 pub mod ui;
 pub mod user_image;

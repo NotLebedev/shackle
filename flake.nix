@@ -23,6 +23,13 @@
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
         llvm = pkgs.llvmPackages_17;
+        fprintd-patched = pkgs.fprintd.overrideAttrs (old: {
+          patches = old.patches ++ [
+            ./fprintd.patch
+          ];
+        });
+        fprint-interfaces = "${fprintd-patched}/share/dbus-1/interfaces";
+
         commonArgs = {
           inherit src;
           strictDeps = true;
@@ -31,6 +38,8 @@
             libgcc
             libxkbcommon
             pam
+            dbus
+            fprintd-patched
           ];
 
           runtimeDependencies = with pkgs; [
@@ -50,21 +59,9 @@
             "${pkgs.glibc.dev}/include"
             "${llvm.libclang.lib}/lib/clang/17/include"
           ];
-        };
 
-        # See https://github.com/diwic/dbus-rs/tree/master/dbus-codegen
-        dbus-codegen-rust = craneLib.buildPackage {
-          src = craneLib.downloadCargoPackage {
-            name = "dbus-codegen";
-            version = "0.10.0";
-            checksum = "sha256-p23DXOg+Tp+gibT6vmbHV7J71QTcIXnJegGzbT6HT7A=";
-            source = "registry+https://github.com/rust-lang/crates.io-index";
-          };
-
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            dbus
-          ];
+          FPRINT_DEVICE_XML = "${fprint-interfaces}/net.reactivated.Fprint.Device.xml";
+          FPRINT_MANAGER_XML = "${fprint-interfaces}/net.reactivated.Fprint.Manager.xml";
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -107,7 +104,6 @@
 
           packages = with pkgs; [
             rust-analyzer
-            dbus-codegen-rust
           ];
 
           # Convinient logging for develpment
