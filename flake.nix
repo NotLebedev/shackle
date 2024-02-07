@@ -23,12 +23,29 @@
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
         llvm = pkgs.llvmPackages_17;
-        fprintd-patched = pkgs.fprintd.overrideAttrs (old: {
-          patches = old.patches ++ [
-            ./fprintd.patch
-          ];
-        });
-        fprint-interfaces = "${fprintd-patched}/share/dbus-1/interfaces";
+
+        # Just the introspection from fprintd
+        fprintd-interfaces = pkgs.stdenv.mkDerivation rec {
+          pname = "fprintd-interfaces";
+          version = "1.94.2";
+          src = pkgs.fetchFromGitLab {
+            domain = "gitlab.freedesktop.org";
+            owner = "libfprint";
+            repo = "fprintd";
+            rev = "v${version}";
+            sha256 = "sha256-ePhcIZyXoGr8XlBuzKjpibU9D/44iCXYBlpVR9gcswQ=";
+          };
+
+          # There is a mistake in Device.xml. Doc tag references non-existing entity
+          # It is patched out so codegen will work
+          patches =  [ ./fprintd.patch ];
+
+          installPhase = ''
+            mkdir -p $out
+            cp src/net.reactivated.Fprint.Device.xml $out
+            cp src/net.reactivated.Fprint.Manager.xml $out
+          '';
+        };
 
         commonArgs = {
           inherit src;
@@ -39,7 +56,7 @@
             libxkbcommon
             pam
             dbus
-            fprintd-patched
+            fprintd
           ];
 
           runtimeDependencies = with pkgs; [
@@ -60,8 +77,8 @@
             "${llvm.libclang.lib}/lib/clang/17/include"
           ];
 
-          FPRINT_DEVICE_XML = "${fprint-interfaces}/net.reactivated.Fprint.Device.xml";
-          FPRINT_MANAGER_XML = "${fprint-interfaces}/net.reactivated.Fprint.Manager.xml";
+          FPRINT_DEVICE_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Device.xml";
+          FPRINT_MANAGER_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Manager.xml";
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
