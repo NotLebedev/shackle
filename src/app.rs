@@ -9,7 +9,7 @@ use iced::{
 use iced_runtime::Command;
 use log::info;
 
-use crate::{auth, signal_handler, user_image};
+use crate::{auth, dbus, signal_handler, user_image};
 
 #[derive(Debug, Clone)]
 pub struct App {
@@ -86,6 +86,7 @@ impl Application for App {
                         return iced::Command::batch([
                             signal_handler::signal_command(),
                             iced::Command::perform(user_image::load(), identity),
+                            iced::Command::perform(dbus::fprint(), identity),
                         ]);
                     }
                     wayland::SessionLockEvent::Unlocked => {

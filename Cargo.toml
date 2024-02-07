@@ -13,6 +13,7 @@ users = "0.11.0"
 home = "0.5.9"
 once_cell = "1.19.0"
 dbus = "0.9.7"
+dbus-tokio = "0.7.6"
 
 [dependencies.iced]
 git = "https://github.com/pop-os/iced.git"
