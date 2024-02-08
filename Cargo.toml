@@ -18,7 +18,7 @@ dbus-tokio = "0.7.6"
 [dependencies.iced]
 git = "https://github.com/pop-os/iced.git"
 default-features = false
-features = ["tokio", "wayland", "debug", "a11y", "image", "svg"]
+features = ["tokio", "wayland", "image", "svg"]
 rev = "51723e87f7de6f9ce8943c28acd0ab62270675f6"
 
 [dependencies.iced_runtime]
