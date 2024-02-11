@@ -1,7 +1,7 @@
 use iced::{
     color, theme,
     widget::{button, column, container, image, svg, text, text_input},
-    Application, Background, BorderRadius, Color, Length,
+    Application, Background, BorderRadius, Length, Theme,
 };
 
 use crate::app::{App, Message, PasswordInput};
@@ -10,13 +10,13 @@ type Element<'a> = iced::Element<'a, <App as Application>::Message>;
 
 impl App {
     pub fn view(&self) -> Element {
-        container::Container::new(self.panel())
+        container(self.panel())
             .center_x()
             .center_y()
             .height(Length::Fill)
             .width(Length::Fill)
             .style(|_: &_| container::Appearance {
-                background: Some(Background::Color(Color::from_rgb(0.0, 0.0, 0.0))),
+                background: Some(Background::Color(color!(0x000000))),
                 ..Default::default()
             })
             .into()
@@ -34,8 +34,8 @@ impl App {
         )
         .padding([50, 100])
         .max_width(600)
-        .style(|_: &_| container::Appearance {
-            background: Some(Background::Color(Color::from_rgb8(0x1a, 0x1b, 0x26))),
+        .style(|theme: &Theme| container::Appearance {
+            background: Some(Background::Color(theme.palette().background)),
             border_radius: BorderRadius::from(10.0),
             ..Default::default()
         })

@@ -1,12 +1,13 @@
-use std::convert::identity;
+use std::{convert::identity, future::Future};
 
 use iced::{
     event::wayland::{self},
     theme::Palette,
+    wayland::session_lock,
     widget::{image, svg, text_input},
     window, Application, Element, Settings,
 };
-use iced_runtime::Command;
+use iced_runtime::{futures::MaybeSend, Command};
 use log::info;
 
 use crate::{auth, dbus, signal_handler, user_image};
@@ -60,7 +61,7 @@ impl Application for App {
                 user_image: None,
                 placeholder_user_image: user_image::placeholder(),
             },
-            iced::wayland::session_lock::lock(),
+            session_lock::lock(),
         )
     }
 
@@ -74,19 +75,16 @@ impl Application for App {
                 wayland::Event::Output(evt, output) => match evt {
                     wayland::OutputEvent::Created(_) => {
                         info!("New output created. Initializing lock surface.");
-                        return iced::wayland::session_lock::get_lock_surface(
-                            window::Id::unique(),
-                            output,
-                        );
+                        return session_lock::get_lock_surface(window::Id::unique(), output);
                     }
                     _ => {}
                 },
                 wayland::Event::SessionLock(evt) => match evt {
                     wayland::SessionLockEvent::Locked => {
                         return iced::Command::batch([
-                            signal_handler::signal_command(),
-                            iced::Command::perform(user_image::load(), identity),
-                            iced::Command::perform(dbus::fprint(), identity),
+                            perform(signal_handler::sighandler()),
+                            perform(user_image::load()),
+                            perform(dbus::fprint()),
                         ]);
                     }
                     wayland::SessionLockEvent::Unlocked => {
@@ -109,7 +107,7 @@ impl Application for App {
                 PasswordInput::Submit => {
                     info!("Checking password.");
                     self.validating_password = true;
-                    return auth::start_password_check(&self.password);
+                    return perform(auth::check_password(self.password.clone()));
                 }
             },
             Message::WrongPassword => {
@@ -119,7 +117,7 @@ impl Application for App {
             Message::Unlock => {
                 info!("Unlocking session.");
                 self.validating_password = false;
-                return iced::wayland::session_lock::unlock();
+                return session_lock::unlock();
             }
             Message::UserImageLoaded(image) => {
                 self.user_image = Some(image);
@@ -134,23 +132,27 @@ impl Application for App {
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        iced::event::listen_raw(|evt, _| {
-            if let iced::Event::PlatformSpecific(iced::event::PlatformSpecific::Wayland(evt)) = evt
-            {
+        iced::event::listen_raw(|evt, _| match evt {
+            iced::Event::PlatformSpecific(iced::event::PlatformSpecific::Wayland(evt)) => {
                 Some(Message::WaylandEvent(evt))
-            } else {
-                None
             }
+            _ => None,
         })
     }
 
     fn theme(&self, _id: iced_runtime::window::Id) -> Self::Theme {
         Self::Theme::custom(Palette {
-            background: iced::Color::from_rgb8(0x1a, 0x1b, 0x26),
-            text: iced::Color::from_rgb8(0xc0, 0xca, 0xf5),
-            primary: iced::Color::from_rgb8(0x2a, 0xc3, 0xde),
-            success: iced::Color::from_rgb8(0x9e, 0xce, 0x6a),
-            danger: iced::Color::from_rgb8(0xdb, 0x4b, 0x4b),
+            background: iced::color!(0x1a1b26),
+            text: iced::color!(0xc0caf5),
+            primary: iced::color!(0x2ac3de),
+            success: iced::color!(0x9ece6a),
+            danger: iced::color!(0xdb4b4b),
         })
     }
+}
+
+fn perform(
+    future: impl Future<Output = Message> + 'static + MaybeSend,
+) -> Command<<App as iced::Application>::Message> {
+    iced::Command::perform(future, identity)
 }

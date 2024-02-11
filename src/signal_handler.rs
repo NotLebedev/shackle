@@ -3,41 +3,17 @@ use tokio::signal::unix::signal;
 
 use crate::app::Message;
 
-enum SignalResult {
-    Recieved,
-    Error,
-}
-
-impl SignalResult {
-    fn recieved() -> Self {
-        info!("Recieved SIGUSR1.");
-        Self::Recieved
-    }
-
-    fn error() -> Self {
-        info!("Failed to listen for SIGUSR1. Unlocking via signal is disabled");
-        Self::Error
-    }
-
-    fn to_message(self) -> Message {
-        match self {
-            SignalResult::Recieved => Message::Unlock,
-            SignalResult::Error => Message::Ignore,
-        }
-    }
-}
-
-async fn sighandler() -> SignalResult {
+pub async fn sighandler() -> Message {
     let Ok(mut sigusr1) = signal(tokio::signal::unix::SignalKind::user_defined1()) else {
-        return SignalResult::error();
+        info!("Failed to listen for SIGUSR1. Unlocking via signal is disabled");
+        return Message::Ignore;
     };
 
-    match sigusr1.recv().await {
-        Some(_) => SignalResult::recieved(),
-        None => SignalResult::error(),
-    }
-}
-
-pub fn signal_command() -> iced::Command<Message> {
-    return iced::Command::perform(sighandler(), SignalResult::to_message);
+    // Interestingly enough the Option returned by recv() is
+    // does not mean success/failure, but rather if the stream
+    // was closed or not. But only one signal is recieved so
+    // no need to care about this
+    sigusr1.recv().await;
+    info!("Recieved SIGUSR1.");
+    Message::Unlock
 }

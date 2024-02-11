@@ -1,5 +1,3 @@
-use std::convert::identity;
-
 use log::info;
 
 use crate::app::Message;
@@ -15,11 +13,11 @@ pub async fn check_password(password: String) -> Message {
         return Message::Ignore;
     };
 
-    info!("Current user is \"{}\".", user.to_string_lossy());
+    let user = user.to_string_lossy();
 
-    client
-        .conversation_mut()
-        .set_credentials(user.to_string_lossy(), password);
+    info!("Current user is \"{user}\".");
+
+    client.conversation_mut().set_credentials(user, password);
 
     match client.authenticate() {
         Ok(_) => {
@@ -31,8 +29,4 @@ pub async fn check_password(password: String) -> Message {
             Message::WrongPassword
         }
     }
-}
-
-pub fn start_password_check(password: &String) -> iced::Command<Message> {
-    return iced::Command::perform(check_password(password.clone()), identity);
 }
