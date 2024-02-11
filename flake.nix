@@ -38,13 +38,27 @@
 
           # There is a mistake in Device.xml. Doc tag references non-existing entity
           # It is patched out so codegen will work
-          patches =  [ ./fprintd.patch ];
+          patches = [ ./fprintd.patch ];
 
           installPhase = ''
             mkdir -p $out
             cp src/net.reactivated.Fprint.Device.xml $out
             cp src/net.reactivated.Fprint.Manager.xml $out
           '';
+        };
+
+        commonEnv = {
+          # Help bindgen find libclang.so
+          LIBCLANG_PATH = "${llvm.libclang.lib}/lib";
+          # Help bindgen find headers
+          CPATH = lib.strings.concatStringsSep ":" [
+            "${pkgs.pam}/include"
+            "${pkgs.glibc.dev}/include"
+            "${llvm.libclang.lib}/lib/clang/17/include"
+          ];
+
+          FPRINT_DEVICE_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Device.xml";
+          FPRINT_MANAGER_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Manager.xml";
         };
 
         commonArgs = {
@@ -67,19 +81,7 @@
             pkg-config
             autoPatchelfHook # Add runtimeDependencies to rpath
           ];
-
-          # Help bindgen find libclang.so
-          LIBCLANG_PATH = "${llvm.libclang.lib}/lib";
-          # Help bindgen find headers
-          CPATH = lib.strings.concatStringsSep ":" [
-            "${pkgs.pam}/include"
-            "${pkgs.glibc.dev}/include"
-            "${llvm.libclang.lib}/lib/clang/17/include"
-          ];
-
-          FPRINT_DEVICE_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Device.xml";
-          FPRINT_MANAGER_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Manager.xml";
-        };
+        } // commonEnv;
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
         my-crate = craneLib.buildPackage (commonArgs // {
@@ -116,7 +118,7 @@
           drv = my-crate;
         };
 
-        devShells.default = craneLib.devShell {
+        devShells.default = craneLib.devShell ({
           checks = self.checks.${system};
 
           packages = with pkgs; [
@@ -126,6 +128,10 @@
           # Convinient logging for develpment
           RUST_BACKTRACE = 1;
           RUST_LOG = "info";
-        };
+
+          # When building with cargo autoPatchelf does not substitude
+          # wayland library from rpath
+          LD_LIBRARY_PATH = "${pkgs.wayland}/lib";
+        } // commonEnv);
       });
 }
