@@ -1,4 +1,5 @@
 use app::App;
+use fork::{daemon, Fork};
 use iced::Application;
 
 pub mod app;
@@ -9,7 +10,9 @@ pub mod ui;
 pub mod user_image;
 
 fn main() {
-    env_logger::init();
-    let settings = App::build_settings();
-    App::run(settings).unwrap();
+    if let Ok(Fork::Child) = daemon(false, false) {
+        env_logger::init();
+        let settings = App::build_settings();
+        App::run(settings).unwrap();
+    };
 }
