@@ -1,8 +1,9 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use dbus::{
+    channel::Token,
     message::SignalArgs,
-    nonblock::{self, MsgMatch},
+    nonblock::{self, MsgMatch, SyncConnection},
 };
 use dbus_tokio::connection::new_system_sync;
 use fprint::{device::Device, manager::Manager};
@@ -21,14 +22,14 @@ pub async fn fprint() -> Message {
         info!("Lost connection to D-Bus: {err}");
     });
 
-    let manager = nonblock::Proxy::new(
+    let fprint_manager = nonblock::Proxy::new(
         "net.reactivated.Fprint",
         "/net/reactivated/Fprint/Manager",
         Duration::from_secs(2),
         conn.clone(),
     );
 
-    let Ok(dev) = manager.get_default_device().await else {
+    let Ok(dev) = fprint_manager.get_default_device().await else {
         info!("No default fingerprint device. Check if fprintd-tod is installed.");
         return Message::Ignore;
     };
@@ -57,22 +58,17 @@ pub async fn fprint() -> Message {
             return Message::Ignore;
         };
 
-        let Ok(handle) = conn
-            .clone()
-            .add_match(DeviceVerifyStatus::match_rule(None, None).static_clone())
-            .await
-        else {
+        let Ok(verification) = add_match::<DeviceVerifyStatus>(conn.clone()).await else {
             info!("Failed to start verification");
             return Message::Ignore;
         };
-        let token = handle.token();
 
-        let result = communicate(handle).await;
+        let result = communicate(verification.handle).await;
 
         // It's important to remove match before doing next round
         // as stated in docs https://docs.rs/dbus/0.9.7/dbus/nonblock/struct.MsgMatch.html
         // drop does not properly dispose of match (because drop can't be async)
-        let _ = conn.remove_match(token).await;
+        let _ = conn.remove_match(verification.token).await;
 
         match result {
             VerifyResult::Match => {
@@ -96,6 +92,21 @@ pub async fn fprint() -> Message {
             }
         }
     }
+}
+
+struct Match {
+    handle: MsgMatch,
+    token: Token,
+}
+async fn add_match<T: SignalArgs>(connection: Arc<SyncConnection>) -> Result<Match, ()> {
+    let handle = connection
+        .clone()
+        .add_match(T::match_rule(None, None).static_clone())
+        .await
+        .map_err(|_| ())?;
+
+    let token = handle.token();
+    Ok(Match { handle, token })
 }
 
 /// This enum represents possible Verify Statuses that are
