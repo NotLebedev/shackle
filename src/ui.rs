@@ -52,7 +52,9 @@ impl App {
     }
 
     fn unlock_button(&self) -> Element {
-        button(text("Unlock")).on_press(Message::Unlock).into()
+        button(text("Unlock"))
+            .on_press(Message::PasswordInput(PasswordInput::Submit))
+            .into()
     }
 
     fn user_image(&self) -> Element {
