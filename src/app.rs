@@ -1,7 +1,7 @@
 use std::{convert::identity, future::Future};
 
 use iced::{
-    event::wayland::{self},
+    event::wayland::{self, SeatEvent},
     theme::Palette,
     wayland::session_lock,
     widget::{image, svg, text_input},

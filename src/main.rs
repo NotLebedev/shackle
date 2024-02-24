@@ -14,7 +14,7 @@ fn main() {
     let args = Args::parse();
 
     if args.daemonize {
-        if let Ok(Fork::Child) = daemon(false, false) {
+        if let Ok(Fork::Child) = daemon(true, true) {
             start();
         }
     } else {

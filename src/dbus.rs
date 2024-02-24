@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{future, sync::Arc, time::Duration};
 
 use dbus::{
     channel::Token,
@@ -7,10 +7,14 @@ use dbus::{
 };
 use dbus_tokio::connection::new_system_sync;
 use fprint::{device::Device, manager::Manager};
+use futures::{channel::mpsc::UnboundedReceiver, select, Future};
 use iced::futures::StreamExt;
 use log::{info, warn};
 
-use crate::{app::Message, dbus::fprint::device::DeviceVerifyStatus};
+use crate::{
+    app::Message,
+    dbus::{fprint::device::DeviceVerifyStatus, login1::manager::ManagerPrepareForSleep},
+};
 
 pub async fn fprint() -> Message {
     let Ok((resource, conn)) = new_system_sync() else {
@@ -63,12 +67,12 @@ pub async fn fprint() -> Message {
             return Message::Ignore;
         };
 
-        let result = communicate(verification.handle).await;
+        let Ok(sleep) = add_match::<ManagerPrepareForSleep>(conn.clone()).await else {
+            info!("Failed to start wait for sleep");
+            return Message::Ignore;
+        };
 
-        // It's important to remove match before doing next round
-        // as stated in docs https://docs.rs/dbus/0.9.7/dbus/nonblock/struct.MsgMatch.html
-        // drop does not properly dispose of match (because drop can't be async)
-        let _ = conn.remove_match(verification.token).await;
+        let result = communicate(conn.clone(), verification, sleep).await;
 
         match result {
             VerifyResult::Match => {
@@ -90,72 +94,105 @@ pub async fn fprint() -> Message {
                 let _ = device.release().await;
                 return Message::Ignore;
             }
+            VerifyResult::Suspended => {
+                // Await until device wakes up and resume verification
+                info!("Device suspending. Pausing fingerprint verification.");
+                if let Err(err) = device.verify_stop().await {
+                    info!("Failed to stop verification: {err}");
+                }
+                let Ok(awake) = add_match::<ManagerPrepareForSleep>(conn.clone()).await else {
+                    info!("Failed to start wait for sleep");
+                    return Message::Ignore;
+                };
+
+                let (awake_match, mut awake) = awake.stream::<ManagerPrepareForSleep>();
+                awake.next().await;
+                info!("Device awaking. Resuming verification.");
+
+                let _ = conn.remove_match(awake_match.token()).await;
+            }
         }
     }
 }
 
-struct Match {
-    handle: MsgMatch,
-    token: Token,
-}
-async fn add_match<T: SignalArgs>(connection: Arc<SyncConnection>) -> Result<Match, ()> {
+async fn add_match<T: SignalArgs>(connection: Arc<SyncConnection>) -> Result<MsgMatch, ()> {
     let handle = connection
         .clone()
         .add_match(T::match_rule(None, None).static_clone())
         .await
         .map_err(|_| ())?;
 
-    let token = handle.token();
-    Ok(Match { handle, token })
+    Ok(handle)
 }
 
 /// This enum represents possible Verify Statuses that are
 /// an end of single verification attempt
+///
 /// Per fprint dbus specification all other statuses mean
 /// that verification is still ongoing
 enum VerifyResult {
-    /// The verification succeeded, Device.VerifyStop should now be called
+    /// The verification succeeded, Device. VerifyStop should now be called
     Match,
-    /// The verification did not match, Device.VerifyStop should now be called
+    /// The verification did not match, Device. VerifyStop should now be called
     NoMatch,
     /// The device was disconnected during the verification,
     /// no other actions should be taken, and you shouldn't use the device any more
     Disconnected,
     /// An unknown error occurred (usually a driver problem),
-    /// Device.VerifyStop should now be called.
+    /// Device. VerifyStop should now be called
     UnknownError,
+    /// Verification was interrupted by device going to sleep. Wait
+    /// until device signals wake before resuming verification
+    Suspended,
 }
 
-async fn communicate(handle: MsgMatch) -> VerifyResult {
-    let (mut item, mut rest) = handle.stream::<DeviceVerifyStatus>().1.into_future().await;
+async fn communicate(
+    connection: Arc<SyncConnection>,
+    verify: MsgMatch,
+    sleep: MsgMatch,
+) -> VerifyResult {
+    let (verify_match, mut verify) = verify.stream::<DeviceVerifyStatus>();
+    let (sleep_match, mut sleep) = sleep.stream::<ManagerPrepareForSleep>();
 
-    loop {
-        if let Some((_, DeviceVerifyStatus { result, .. })) = item {
-            info!("Verification status {result} recived.");
-            match result.as_str() {
-                "verify-match" => return VerifyResult::Match,
-                "verify-no-match" => return VerifyResult::NoMatch,
-                "verify-disconnected" => return VerifyResult::Disconnected,
-                "verify-unknown-error" => return VerifyResult::UnknownError,
-                "verify-retry-scan"
-                | "verify-swipe-too-short"
-                | "verify-finger-not-centered"
-                | "verify-remove-and-retry" => {
-                    // These statuses mean that verification is still ongoing
-                    // More messages are to be expected
-                    (item, rest) = rest.into_future().await;
+    let result = loop {
+        select! {
+            status = verify.select_next_some() => {
+                let result = status.1.result;
+                info!("Verification status {result} recived.");
+                match result.as_str() {
+                    "verify-retry-scan"
+                    | "verify-swipe-too-short"
+                    | "verify-finger-not-centered"
+                    | "verify-remove-and-retry" => (),
+                    "verify-match" => break VerifyResult::Match,
+                    "verify-no-match" => break VerifyResult::NoMatch,
+                    "verify-disconnected" => break VerifyResult::Disconnected,
+                    "verify-unknown-error" => break VerifyResult::UnknownError,
+                    // Unexpected result from DeviceVerifyStatus
+                    // Best not to do anything
+                    _ => break VerifyResult::UnknownError,
                 }
-                // Unexpected result from DeviceVerifyStatus
-                // Best not to do anything
-                _ => return VerifyResult::UnknownError,
             }
-        } else {
-            // Stream ended without successfull verification
-            // This is unexpected, so best to assume that dbus handles
-            // everything by itself
-            return VerifyResult::UnknownError;
+
+            status = sleep.select_next_some() => {
+                info!("Prepare for sleep: {}", status.1.start);
+                if status.1.start {
+                    break VerifyResult::Suspended;
+                }
+            }
+
+            complete => {
+                info!("Stream ended");
+                break VerifyResult::UnknownError;
+            },
         }
-    }
+    };
+    // It's important to remove match before doing next round
+    // as stated in docs https://docs.rs/dbus/0.9.7/dbus/nonblock/struct.MsgMatch.html
+    // drop does not properly dispose of match (because drop can't be async)
+    let _ = connection.remove_match(verify_match.token()).await;
+    let _ = connection.remove_match(sleep_match.token()).await;
+    return result;
 }
 
 mod fprint {
@@ -167,5 +204,11 @@ mod fprint {
     /// net.reactivated.Fprint.Manager
     pub mod manager {
         include!(concat!(env!("OUT_DIR"), "/dbus-fprint-manager.rs"));
+    }
+}
+
+mod login1 {
+    pub mod manager {
+        include!(concat!(env!("OUT_DIR"), "/dbus-login1-manager.rs"));
     }
 }

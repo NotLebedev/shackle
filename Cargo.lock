@@ -2874,6 +2874,7 @@ dependencies = [
  "dbus-tokio",
  "env_logger",
  "fork",
+ "futures",
  "home",
  "iced",
  "iced_runtime",

@@ -59,6 +59,7 @@
 
           FPRINT_DEVICE_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Device.xml";
           FPRINT_MANAGER_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Manager.xml";
+          LOGIN1_MANGER_XML = "${pkgs.systemd}/share/dbus-1/interfaces/org.freedesktop.login1.Manager.xml";
         };
 
         commonArgs = {
