@@ -70,7 +70,7 @@ pub async fn fprint() -> Message {
                 let _ = device.release().await;
                 return Message::Unlock;
             }
-            VerifyResult::NoMatch | VerifyResult::UnknownError => {
+            VerifyResult::NoMatch | VerifyResult::UnknownError | VerifyResult::UnexpectedWakeup => {
                 if let Err(err) = device.verify_stop().await {
                     info!("Failed to stop verification: {err}");
                 }
@@ -116,6 +116,9 @@ enum VerifyResult {
     /// Verification was interrupted by device going to sleep. Wait
     /// until device signals wake before resuming verification
     Suspended,
+    /// Verification was interrupted by device waking up. Time went device went to
+    /// sleep was missed so it's best to restart verification process
+    UnexpectedWakeup,
 }
 
 async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyResult, ()> {
@@ -155,6 +158,9 @@ async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyR
                 info!("Prepare for sleep: {}", status.1.start);
                 if status.1.start {
                     break VerifyResult::Suspended;
+                }
+                else {
+                    break VerifyResult::UnexpectedWakeup;
                 }
             }
 
