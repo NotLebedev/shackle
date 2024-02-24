@@ -1,19 +1,18 @@
-use std::{future, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use dbus::{
-    channel::Token,
     message::SignalArgs,
-    nonblock::{self, MsgMatch, SyncConnection},
+    nonblock::{self, MsgMatch, Proxy, SyncConnection},
 };
 use dbus_tokio::connection::new_system_sync;
 use fprint::{device::Device, manager::Manager};
-use futures::{channel::mpsc::UnboundedReceiver, select, Future};
+use futures::select;
 use iced::futures::StreamExt;
 use log::{info, warn};
 
 use crate::{
     app::Message,
-    dbus::{fprint::device::DeviceVerifyStatus, login1::manager::ManagerPrepareForSleep},
+    dbus::{fprint::device::DeviceVerifyStatus, login1::ManagerPrepareForSleep},
 };
 
 pub async fn fprint() -> Message {
@@ -62,29 +61,16 @@ pub async fn fprint() -> Message {
             return Message::Ignore;
         };
 
-        let Ok(verification) = add_match::<DeviceVerifyStatus>(conn.clone()).await else {
-            info!("Failed to start verification");
+        let Ok(result) = attempt_verification(conn.clone()).await else {
             return Message::Ignore;
         };
-
-        let Ok(sleep) = add_match::<ManagerPrepareForSleep>(conn.clone()).await else {
-            info!("Failed to start wait for sleep");
-            return Message::Ignore;
-        };
-
-        let result = communicate(conn.clone(), verification, sleep).await;
 
         match result {
             VerifyResult::Match => {
                 let _ = device.release().await;
                 return Message::Unlock;
             }
-            VerifyResult::NoMatch => {
-                if let Err(err) = device.verify_stop().await {
-                    info!("Failed to stop verification: {err}");
-                }
-            }
-            VerifyResult::UnknownError => {
+            VerifyResult::NoMatch | VerifyResult::UnknownError => {
                 if let Err(err) = device.verify_stop().await {
                     info!("Failed to stop verification: {err}");
                 }
@@ -95,21 +81,7 @@ pub async fn fprint() -> Message {
                 return Message::Ignore;
             }
             VerifyResult::Suspended => {
-                // Await until device wakes up and resume verification
-                info!("Device suspending. Pausing fingerprint verification.");
-                if let Err(err) = device.verify_stop().await {
-                    info!("Failed to stop verification: {err}");
-                }
-                let Ok(awake) = add_match::<ManagerPrepareForSleep>(conn.clone()).await else {
-                    info!("Failed to start wait for sleep");
-                    return Message::Ignore;
-                };
-
-                let (awake_match, mut awake) = awake.stream::<ManagerPrepareForSleep>();
-                awake.next().await;
-                info!("Device awaking. Resuming verification.");
-
-                let _ = conn.remove_match(awake_match.token()).await;
+                wait_for_wakeup(conn.clone(), &device).await;
             }
         }
     }
@@ -146,11 +118,16 @@ enum VerifyResult {
     Suspended,
 }
 
-async fn communicate(
-    connection: Arc<SyncConnection>,
-    verify: MsgMatch,
-    sleep: MsgMatch,
-) -> VerifyResult {
+async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyResult, ()> {
+    let Ok(verify) = add_match::<DeviceVerifyStatus>(connection.clone()).await else {
+        info!("Failed to start verification");
+        return Err(());
+    };
+    let Ok(sleep) = add_match::<ManagerPrepareForSleep>(connection.clone()).await else {
+        info!("Failed to wait for sleep");
+        return Err(());
+    };
+
     let (verify_match, mut verify) = verify.stream::<DeviceVerifyStatus>();
     let (sleep_match, mut sleep) = sleep.stream::<ManagerPrepareForSleep>();
 
@@ -192,7 +169,33 @@ async fn communicate(
     // drop does not properly dispose of match (because drop can't be async)
     let _ = connection.remove_match(verify_match.token()).await;
     let _ = connection.remove_match(sleep_match.token()).await;
-    return result;
+    return Ok(result);
+}
+
+/// Await until device wakes up and resume verification
+async fn wait_for_wakeup<'a>(
+    connection: Arc<SyncConnection>,
+    device: &Proxy<'a, Arc<SyncConnection>>,
+) {
+    info!("Device suspending. Pausing fingerprint verification.");
+    if let Err(err) = device.verify_stop().await {
+        info!("Failed to stop verification: {err}");
+        // If device did not pause continue as normal
+        // It may have disconnected
+    }
+
+    let Ok(awake) = add_match::<ManagerPrepareForSleep>(connection.clone()).await else {
+        info!("Failed to start wait for sleep");
+        // This is non-critical. Worst case fprint will wait a little and
+        // throw an unknown error.
+        return;
+    };
+
+    let (awake_match, mut awake) = awake.stream::<ManagerPrepareForSleep>();
+    awake.next().await;
+    info!("Device awaking. Resuming verification.");
+
+    let _ = connection.remove_match(awake_match.token()).await;
 }
 
 mod fprint {
@@ -208,7 +211,5 @@ mod fprint {
 }
 
 mod login1 {
-    pub mod manager {
-        include!(concat!(env!("OUT_DIR"), "/dbus-login1-manager.rs"));
-    }
+    include!(concat!(env!("OUT_DIR"), "/dbus-login1-manager.rs"));
 }
