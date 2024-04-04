@@ -19,6 +19,12 @@ pub struct App {
     pub user_image: Option<image::Handle>,
     pub placeholder_user_image: svg::Handle,
     pub password_input: iced::id::Id,
+    flags: Flags,
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct Flags {
+    pub await_wakeup: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -38,9 +44,10 @@ pub enum PasswordInput {
 }
 
 impl App {
-    pub fn build_settings() -> Settings<<App as Application>::Flags> {
+    pub fn build_settings(flags: Flags) -> Settings<<App as Application>::Flags> {
         Settings {
             initial_surface: iced::wayland::InitialSurface::None,
+            flags,
             ..Default::default()
         }
     }
@@ -49,10 +56,10 @@ impl App {
 impl Application for App {
     type Executor = iced::executor::Default;
     type Message = Message;
-    type Flags = ();
+    type Flags = Flags;
     type Theme = iced::Theme;
 
-    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+    fn new(flags: Flags) -> (Self, Command<Self::Message>) {
         (
             Self {
                 password_input: iced::id::Id::unique(),
@@ -60,6 +67,7 @@ impl Application for App {
                 validating_password: false,
                 user_image: None,
                 placeholder_user_image: user_image::placeholder(),
+                flags,
             },
             session_lock::lock(),
         )
@@ -84,7 +92,7 @@ impl Application for App {
                         return iced::Command::batch([
                             perform(signal_handler::sighandler()),
                             perform(user_image::load()),
-                            perform(dbus::fprint()),
+                            perform(dbus::fprint(self.flags.await_wakeup)),
                         ]);
                     }
                     wayland::SessionLockEvent::Unlocked => {

@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use dbus::{
     message::SignalArgs,
-    nonblock::{self, MsgMatch, Proxy, SyncConnection},
+    nonblock::{self, MsgMatch, SyncConnection},
 };
 use dbus_tokio::connection::new_system_sync;
 use fprint::{device::Device, manager::Manager};
@@ -15,7 +15,7 @@ use crate::{
     dbus::{fprint::device::DeviceVerifyStatus, login1::ManagerPrepareForSleep},
 };
 
-pub async fn fprint() -> Message {
+pub async fn fprint(await_wakeup: bool) -> Message {
     let Ok((resource, conn)) = new_system_sync() else {
         return Message::Ignore;
     };
@@ -24,6 +24,10 @@ pub async fn fprint() -> Message {
         let err = resource.await;
         info!("Lost connection to D-Bus: {err}");
     });
+
+    if await_wakeup {
+        wait_for_wakeup(conn.clone()).await;
+    }
 
     let fprint_manager = nonblock::Proxy::new(
         "net.reactivated.Fprint",
@@ -81,7 +85,13 @@ pub async fn fprint() -> Message {
                 return Message::Ignore;
             }
             VerifyResult::Suspended => {
-                wait_for_wakeup(conn.clone(), &device).await;
+                info!("Device suspending. Pausing fingerprint verification.");
+                if let Err(err) = device.verify_stop().await {
+                    info!("Failed to stop verification: {err}");
+                    // If device did not pause continue as normal
+                    // It may have disconnected
+                }
+                wait_for_wakeup(conn.clone()).await;
             }
         }
     }
@@ -179,17 +189,7 @@ async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyR
 }
 
 /// Await until device wakes up and resume verification
-async fn wait_for_wakeup<'a>(
-    connection: Arc<SyncConnection>,
-    device: &Proxy<'a, Arc<SyncConnection>>,
-) {
-    info!("Device suspending. Pausing fingerprint verification.");
-    if let Err(err) = device.verify_stop().await {
-        info!("Failed to stop verification: {err}");
-        // If device did not pause continue as normal
-        // It may have disconnected
-    }
-
+async fn wait_for_wakeup<'a>(connection: Arc<SyncConnection>) {
     let Ok(awake) = add_match::<ManagerPrepareForSleep>(connection.clone()).await else {
         info!("Failed to start wait for sleep");
         // This is non-critical. Worst case fprint will wait a little and
