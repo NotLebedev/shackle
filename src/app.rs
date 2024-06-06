@@ -1,4 +1,4 @@
-use std::{convert::identity, future::Future};
+use std::{collections::HashMap, convert::identity, future::Future};
 
 use iced::{
     event::wayland::{self},
@@ -19,6 +19,7 @@ pub struct App {
     pub user_image: Option<image::Handle>,
     pub placeholder_user_image: svg::Handle,
     pub password_input: iced::id::Id,
+    pub input_to_window: HashMap<window::Id, u32>,
     flags: Flags,
 }
 
@@ -67,6 +68,7 @@ impl Application for App {
                 validating_password: false,
                 user_image: None,
                 placeholder_user_image: user_image::placeholder(),
+                input_to_window: HashMap::new(),
                 flags,
             },
             session_lock::lock(),
@@ -81,9 +83,15 @@ impl Application for App {
         match message {
             Message::WaylandEvent(evt) => match evt {
                 wayland::Event::Output(evt, output) => match evt {
-                    wayland::OutputEvent::Created(_) => {
+                    wayland::OutputEvent::Created(info) => {
                         info!("New output created. Initializing lock surface.");
-                        return session_lock::get_lock_surface(window::Id::unique(), output);
+
+                        let id = window::Id::unique();
+                        if let Some(info) = info {
+                            self.input_to_window.insert(id, info.id);
+                        }
+
+                        return session_lock::get_lock_surface(id, output);
                     }
                     _ => {}
                 },
