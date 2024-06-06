@@ -81,6 +81,7 @@
           nativeBuildInputs = with pkgs; [
             pkg-config
             autoPatchelfHook # Add runtimeDependencies to rpath
+            git-lfs
           ];
         } // commonEnv;
 

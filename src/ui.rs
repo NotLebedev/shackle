@@ -1,7 +1,7 @@
 use iced::{
     color, theme,
     widget::{button, column, container, image, svg, text, text_input},
-    Application, Background, BorderRadius, Length, Theme,
+    Application, Background, Border, Length, Radius, Theme,
 };
 
 use crate::app::{App, Message, PasswordInput};
@@ -36,7 +36,7 @@ impl App {
         .max_width(600)
         .style(|theme: &Theme| container::Appearance {
             background: Some(Background::Color(theme.palette().background)),
-            border_radius: BorderRadius::from(10.0),
+            border: Border::with_radius(Radius::from(10.0)),
             ..Default::default()
         })
         .into()
