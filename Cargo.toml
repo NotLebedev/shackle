@@ -22,11 +22,11 @@ clap = { version = "4.5.0", features = [ "derive" ] }
 git = "https://github.com/pop-os/iced.git"
 default-features = false
 features = ["tokio", "wayland", "image", "svg"]
-rev = "51723e87f7de6f9ce8943c28acd0ab62270675f6"
+rev = "c47171dabe3e88286fdb8bde236ef0c038e9d8fe"
 
 [dependencies.iced_runtime]
 git = "https://github.com/pop-os/iced.git"
-rev = "51723e87f7de6f9ce8943c28acd0ab62270675f6"
+rev = "c47171dabe3e88286fdb8bde236ef0c038e9d8fe"
 
 [build-dependencies]
 dbus-codegen = "0.10.0"

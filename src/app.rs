@@ -149,13 +149,16 @@ impl Application for App {
     }
 
     fn theme(&self, _id: iced_runtime::window::Id) -> Self::Theme {
-        Self::Theme::custom(Palette {
-            background: iced::color!(0x1a1b26),
-            text: iced::color!(0xc0caf5),
-            primary: iced::color!(0x2ac3de),
-            success: iced::color!(0x9ece6a),
-            danger: iced::color!(0xdb4b4b),
-        })
+        Self::Theme::custom(
+            "Tokio Night".into(),
+            Palette {
+                background: iced::color!(0x1a1b26),
+                text: iced::color!(0xc0caf5),
+                primary: iced::color!(0x2ac3de),
+                success: iced::color!(0x9ece6a),
+                danger: iced::color!(0xdb4b4b),
+            },
+        )
     }
 }
 
