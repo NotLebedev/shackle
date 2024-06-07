@@ -86,38 +86,34 @@
         } // commonEnv;
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-        my-crate = craneLib.buildPackage (commonArgs // {
+        shackle = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
         });
       in
       {
         checks = {
-          inherit my-crate;
+          inherit shackle;
 
-          my-crate-clippy = craneLib.cargoClippy (commonArgs // {
+          shackle-clippy = craneLib.cargoClippy (commonArgs // {
             inherit cargoArtifacts;
             cargoClippyExtraArgs = "--all-targets -- --deny warnings";
           });
 
-          my-crate-doc = craneLib.cargoDoc (commonArgs // {
-            inherit cargoArtifacts;
-          });
-
-          my-crate-fmt = craneLib.cargoFmt {
+          shackle-fmt = craneLib.cargoFmt {
             inherit src;
           };
 
-          my-crate-nextest = craneLib.cargoNextest (commonArgs // {
+          shackle-nextest = craneLib.cargoNextest (commonArgs // {
             inherit cargoArtifacts;
             partitions = 1;
             partitionType = "count";
           });
         };
 
-        packages.default = my-crate;
+        packages.default = shackle;
 
         apps.default = flake-utils.lib.mkApp {
-          drv = my-crate;
+          drv = shackle;
         };
 
         devShells.default = craneLib.devShell ({
