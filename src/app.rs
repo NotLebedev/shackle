@@ -19,8 +19,14 @@ pub struct App {
     pub user_image: Option<image::Handle>,
     pub placeholder_user_image: svg::Handle,
     pub password_input: iced::id::Id,
-    pub input_to_window: HashMap<window::Id, u32>,
+    pub window_to_output: HashMap<window::Id, OutputInfo>,
     flags: Flags,
+}
+
+#[derive(Debug, Clone)]
+struct OutputInfo {
+    id: u32,
+    name: Option<String>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -68,7 +74,7 @@ impl Application for App {
                 validating_password: false,
                 user_image: None,
                 placeholder_user_image: user_image::placeholder(),
-                input_to_window: HashMap::new(),
+                window_to_output: HashMap::new(),
                 flags,
             },
             session_lock::lock(),
@@ -88,7 +94,13 @@ impl Application for App {
 
                         let id = window::Id::unique();
                         if let Some(info) = info {
-                            self.input_to_window.insert(id, info.id);
+                            self.window_to_output.insert(
+                                id,
+                                OutputInfo {
+                                    id: info.id,
+                                    name: info.name,
+                                },
+                            );
                         }
 
                         return session_lock::get_lock_surface(id, output);
