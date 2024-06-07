@@ -1,4 +1,29 @@
 #![warn(clippy::pedantic)]
+// Enable some from restriction category
+#![warn(
+    clippy::alloc_instead_of_core,
+    clippy::create_dir,
+    clippy::dbg_macro,
+    clippy::deref_by_slicing,
+    clippy::disallowed_script_idents,
+    clippy::exit,
+    clippy::expect_used,
+    clippy::filetype_is_file,
+    clippy::if_then_some_else_none,
+    clippy::unwrap_used,
+    clippy::use_debug,
+    clippy::panic,
+    clippy::rc_buffer,
+    clippy::rc_mutex,
+    clippy::todo,
+    clippy::unimplemented,
+    clippy::unneeded_field_pattern
+)]
+// Without self method can be called without object, which is undesirable
+#![allow(clippy::unused_self)]
+// Preferring explicit new call instead of Default::default
+#![allow(clippy::new_without_default)]
+
 use app::{App, Flags};
 use clap::Parser;
 use fork::{daemon, Fork};
