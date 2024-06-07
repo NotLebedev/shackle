@@ -24,7 +24,7 @@ pub struct App {
 }
 
 #[derive(Debug, Clone)]
-struct OutputInfo {
+pub struct OutputInfo {
     id: u32,
     name: Option<String>,
 }
@@ -51,6 +51,7 @@ pub enum PasswordInput {
 }
 
 impl App {
+    #[must_use]
     pub fn build_settings(flags: Flags) -> Settings<<App as Application>::Flags> {
         Settings {
             initial_surface: iced::wayland::InitialSurface::None,
@@ -70,7 +71,7 @@ impl Application for App {
         (
             Self {
                 password_input: iced::id::Id::unique(),
-                password: Default::default(),
+                password: String::new(),
                 validating_password: false,
                 user_image: None,
                 placeholder_user_image: user_image::placeholder(),
@@ -88,25 +89,22 @@ impl Application for App {
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::WaylandEvent(evt) => match evt {
-                wayland::Event::Output(evt, output) => match evt {
-                    wayland::OutputEvent::Created(info) => {
-                        info!("New output created. Initializing lock surface.");
+                wayland::Event::Output(wayland::OutputEvent::Created(info), output) => {
+                    info!("New output created. Initializing lock surface.");
 
-                        let id = window::Id::unique();
-                        if let Some(info) = info {
-                            self.window_to_output.insert(
-                                id,
-                                OutputInfo {
-                                    id: info.id,
-                                    name: info.name,
-                                },
-                            );
-                        }
-
-                        return session_lock::get_lock_surface(id, output);
+                    let id = window::Id::unique();
+                    if let Some(info) = info {
+                        self.window_to_output.insert(
+                            id,
+                            OutputInfo {
+                                id: info.id,
+                                name: info.name,
+                            },
+                        );
                     }
-                    _ => {}
-                },
+
+                    return session_lock::get_lock_surface(id, output);
+                }
                 wayland::Event::SessionLock(evt) => match evt {
                     wayland::SessionLockEvent::Locked => {
                         return iced::Command::batch([
@@ -135,11 +133,12 @@ impl Application for App {
                 PasswordInput::Submit => {
                     info!("Checking password.");
                     self.validating_password = true;
-                    return perform(auth::check_password(self.password.clone()));
+                    let password = self.password.clone();
+                    return perform(async { auth::check_password(password) });
                 }
             },
             Message::WrongPassword => {
-                self.password = "".into();
+                self.password = String::new();
                 self.validating_password = false;
             }
             Message::Unlock => {

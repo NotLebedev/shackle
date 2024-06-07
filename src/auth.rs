@@ -2,7 +2,8 @@ use log::info;
 
 use crate::app::Message;
 
-pub async fn check_password(password: String) -> Message {
+#[must_use]
+pub fn check_password(password: String) -> Message {
     let Ok(mut client) = pam::Client::with_password("shackle") else {
         info!("Failed to initialize PAM client. Session won't be unlocked.");
         return Message::Ignore;
@@ -19,14 +20,11 @@ pub async fn check_password(password: String) -> Message {
 
     client.conversation_mut().set_credentials(user, password);
 
-    match client.authenticate() {
-        Ok(_) => {
-            info!("Password correct.");
-            Message::Unlock
-        }
-        Err(_) => {
-            info!("Password incorrect.");
-            Message::WrongPassword
-        }
+    if client.authenticate().is_ok() {
+        info!("Password correct.");
+        Message::Unlock
+    } else {
+        info!("Password incorrect.");
+        Message::WrongPassword
     }
 }

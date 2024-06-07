@@ -157,8 +157,8 @@ async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyR
                     "verify-match" => break VerifyResult::Match,
                     "verify-no-match" => break VerifyResult::NoMatch,
                     "verify-disconnected" => break VerifyResult::Disconnected,
-                    "verify-unknown-error" => break VerifyResult::UnknownError,
                     // Unexpected result from DeviceVerifyStatus
+                    // Either undocumented or verify-unknown-error
                     // Best not to do anything
                     _ => break VerifyResult::UnknownError,
                 }
@@ -169,9 +169,7 @@ async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyR
                 if status.1.start {
                     break VerifyResult::Suspended;
                 }
-                else {
-                    break VerifyResult::UnexpectedWakeup;
-                }
+                break VerifyResult::UnexpectedWakeup;
             }
 
             complete => {
@@ -185,7 +183,7 @@ async fn attempt_verification(connection: Arc<SyncConnection>) -> Result<VerifyR
     // drop does not properly dispose of match (because drop can't be async)
     let _ = connection.remove_match(verify_match.token()).await;
     let _ = connection.remove_match(sleep_match.token()).await;
-    return Ok(result);
+    Ok(result)
 }
 
 /// Await until device wakes up and resume verification

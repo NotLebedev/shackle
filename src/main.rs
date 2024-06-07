@@ -19,10 +19,12 @@
     clippy::unimplemented,
     clippy::unneeded_field_pattern
 )]
-// Without self method can be called without object, which is undesirable
-#![allow(clippy::unused_self)]
-// Preferring explicit new call instead of Default::default
-#![allow(clippy::new_without_default)]
+#![allow(
+    clippy::unused_self,
+    clippy::new_without_default,
+    clippy::unreadable_literal,
+    clippy::must_use_candidate
+)]
 
 use app::{App, Flags};
 use clap::Parser;
@@ -41,19 +43,22 @@ fn main() {
 
     if args.daemonize {
         if let Ok(Fork::Child) = daemon(true, true) {
-            start(args);
+            start(&args);
         }
     } else {
-        start(args);
+        start(&args);
     }
 }
 
-fn start(args: Args) {
+fn start(args: &Args) {
     env_logger::init();
     let settings = App::build_settings(Flags {
         await_wakeup: args.await_wakeup,
     });
-    App::run(settings).unwrap();
+    match App::run(settings) {
+        Ok(()) => (),
+        Err(err) => log::error!("{}", err.to_string()),
+    }
 }
 
 #[derive(Parser)]
