@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 use app::{App, Flags};
 use clap::Parser;
 use fork::{daemon, Fork};

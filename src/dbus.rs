@@ -207,15 +207,18 @@ async fn wait_for_wakeup<'a>(connection: Arc<SyncConnection>) {
 mod fprint {
     /// net.reactivated.Fprint.Device
     pub mod device {
+        #![allow(clippy::all, clippy::pedantic, clippy::nursery)]
         include!(concat!(env!("OUT_DIR"), "/dbus-fprint-device.rs"));
     }
 
     /// net.reactivated.Fprint.Manager
     pub mod manager {
+        #![allow(clippy::all, clippy::pedantic, clippy::nursery)]
         include!(concat!(env!("OUT_DIR"), "/dbus-fprint-manager.rs"));
     }
 }
 
 mod login1 {
+    #![allow(clippy::all, clippy::pedantic, clippy::nursery)]
     include!(concat!(env!("OUT_DIR"), "/dbus-login1-manager.rs"));
 }
