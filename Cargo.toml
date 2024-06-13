@@ -24,6 +24,10 @@ default-features = false
 features = ["tokio", "wayland", "image", "svg"]
 rev = "c47171dabe3e88286fdb8bde236ef0c038e9d8fe"
 
+[dependencies.iced_core]
+git = "https://github.com/pop-os/iced.git"
+rev = "c47171dabe3e88286fdb8bde236ef0c038e9d8fe"
+
 [dependencies.iced_runtime]
 git = "https://github.com/pop-os/iced.git"
 rev = "c47171dabe3e88286fdb8bde236ef0c038e9d8fe"
