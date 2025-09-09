@@ -11,9 +11,11 @@ use tokio::sync::oneshot;
 
 use crate::dbus::fprint;
 use crate::tokio_runtime::runtime;
+use crate::ui::controls;
 
 mod dbus;
 mod tokio_runtime;
+mod ui;
 
 fn on_session_locked(_: &SessionLockInstance) {
     info!("Session locked successfully");
@@ -29,36 +31,15 @@ fn on_session_unlocked(app: &gtk::Application) {
     app.quit();
 }
 
-fn on_unlock_button_clicked(lock: &SessionLockInstance) {
-    lock.unlock();
-}
-
 fn on_monitor_present(lock: &SessionLockInstance, monitor: gdk::Monitor, app: &gtk::Application) {
     // TODO: this function creates ui on each monitor. We need to present controls only on one
     // and just beatuiful background on rest
 
     let window = gtk::ApplicationWindow::new(app);
 
-    let bbox = gtk::Box::builder()
-        .orientation(gtk::Orientation::Vertical)
-        .halign(gtk::Align::Center)
-        .valign(gtk::Align::Center)
-        .spacing(10)
-        .build();
+    let controls = controls(lock);
 
-    let label = gtk::Label::new(Some("GTK4 Session Lock Example"));
-    bbox.append(&label);
-
-    let button = gtk::Button::builder().label("Unlock").build();
-
-    button.connect_clicked(clone!(
-        #[weak]
-        lock,
-        move |_| on_unlock_button_clicked(&lock)
-    ));
-    bbox.append(&button);
-
-    window.set_child(Some(&bbox));
+    window.set_child(Some(&controls));
 
     lock.assign_window_to_monitor(&window, &monitor);
     // No need for window.present

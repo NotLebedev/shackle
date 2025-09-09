@@ -1,77 +1,38 @@
-use iced::{
-    color, theme,
-    widget::{button, column, container, image, svg, text, text_input},
-    Application, Background, Border, Length, Radius, Theme,
-};
+use glib::{self, clone};
+use gtk::prelude::{BoxExt, ButtonExt, EditableExt};
+use gtk4_session_lock::Instance as SessionLockInstance;
 
-use crate::app::{App, Message, PasswordInput};
-
-type Element<'a> = iced::Element<'a, <App as Application>::Message>;
-
-impl App {
-    pub fn view(&self) -> Element {
-        container(self.panel())
-            .center_x()
-            .center_y()
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .style(|_: &_| container::Appearance {
-                background: Some(Background::Color(color!(0x000000))),
-                ..Default::default()
-            })
-            .into()
+fn control_input_activated(password_entry: &gtk::PasswordEntry, lock: &SessionLockInstance) {
+    if password_entry.text().as_str() == "qwe" {
+        lock.unlock();
     }
+}
 
-    fn panel(&self) -> Element {
-        container(
-            column![
-                self.user_image(),
-                self.password_input(),
-                self.unlock_button(),
-            ]
-            .spacing(30)
-            .align_items(iced::Alignment::Center),
-        )
-        .padding([50, 100])
-        .max_width(600)
-        .style(|theme: &Theme| container::Appearance {
-            background: Some(Background::Color(theme.palette().background)),
-            border: Border::with_radius(Radius::from(10.0)),
-            ..Default::default()
-        })
-        .into()
-    }
+pub fn controls(lock: &SessionLockInstance) -> gtk::Widget {
+    let bbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .spacing(10)
+        .build();
 
-    fn password_input(&self) -> Element {
-        text_input("", &self.password)
-            .password()
-            .id(self.password_input.clone())
-            .on_input(|val| Message::PasswordInput(PasswordInput::Value(val)))
-            .on_submit(Message::PasswordInput(PasswordInput::Submit))
-            .into()
-    }
+    let password_entry = gtk::PasswordEntry::new();
+    password_entry.connect_activate(clone!(
+        #[weak]
+        lock,
+        move |password_entry| control_input_activated(password_entry, &lock)
+    ));
+    bbox.append(&password_entry);
 
-    fn unlock_button(&self) -> Element {
-        button(text("Unlock"))
-            .on_press(Message::PasswordInput(PasswordInput::Submit))
-            .into()
-    }
+    let button = gtk::Button::builder().label("Unlock").build();
+    button.connect_clicked(clone!(
+        #[weak]
+        password_entry,
+        #[weak]
+        lock,
+        move |_| control_input_activated(&password_entry, &lock)
+    ));
+    bbox.append(&button);
 
-    fn user_image(&self) -> Element {
-        if let Some(user_image) = &self.user_image {
-            image(user_image.clone())
-                .border_radius([50.0, 50.0, 50.0, 50.0])
-                .width(100)
-                .height(100)
-                .into()
-        } else {
-            svg(self.placeholder_user_image.clone())
-                .width(100)
-                .height(100)
-                .style(theme::Svg::custom_fn(|_theme| svg::Appearance {
-                    color: Some(color!(0x7aa2f7)),
-                }))
-                .into()
-        }
-    }
+    bbox.into()
 }
