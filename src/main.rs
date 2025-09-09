@@ -102,6 +102,16 @@ fn activate(app: &gtk::Application) {
         }
     ));
 
+    glib::spawn_future_local(clone!(
+        #[weak]
+        lock,
+        async move {
+            glib::unix_signal_future(nix::sys::signal::Signal::SIGUSR1 as i32).await;
+            info!("Recieved SIGUSR1.");
+            lock.unlock();
+        }
+    ));
+
     // When this function exits session is not guaranteed to be locked
     lock.lock();
 }
@@ -130,7 +140,7 @@ fn start(_args: Args) {
     let app = gtk::Application::new(Some("org.notlebedev.shackle"), Default::default());
 
     app.connect_activate(activate);
-    app.run();
+    app.run_with_args(&Vec::<String>::new());
 }
 
 #[derive(Parser)]
