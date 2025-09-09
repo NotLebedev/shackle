@@ -1,4 +1,4 @@
-use glib::{self, clone};
+use gtk::glib::{self, clone};
 use gtk::prelude::{BoxExt, ButtonExt, EditableExt};
 use gtk4_session_lock::Instance as SessionLockInstance;
 

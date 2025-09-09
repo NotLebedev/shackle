@@ -29,29 +29,6 @@
 
         llvm = pkgs.llvmPackages_17;
 
-        # Just the introspection from fprintd
-        fprintd-interfaces = pkgs.stdenv.mkDerivation rec {
-          pname = "fprintd-interfaces";
-          version = "1.94.2";
-          src = pkgs.fetchFromGitLab {
-            domain = "gitlab.freedesktop.org";
-            owner = "libfprint";
-            repo = "fprintd";
-            rev = "v${version}";
-            sha256 = "sha256-ePhcIZyXoGr8XlBuzKjpibU9D/44iCXYBlpVR9gcswQ=";
-          };
-
-          # There is a mistake in Device.xml. Doc tag references non-existing entity
-          # It is patched out so codegen will work
-          patches = [ ./fprintd.patch ];
-
-          installPhase = ''
-            mkdir -p $out
-            cp src/net.reactivated.Fprint.Device.xml $out
-            cp src/net.reactivated.Fprint.Manager.xml $out
-          '';
-        };
-
         commonEnv = {
           # Help bindgen find libclang.so
           LIBCLANG_PATH = "${llvm.libclang.lib}/lib";
@@ -61,10 +38,6 @@
             "${pkgs.glibc.dev}/include"
             "${llvm.libclang.lib}/lib/clang/17/include"
           ];
-
-          FPRINT_DEVICE_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Device.xml";
-          FPRINT_MANAGER_XML = "${fprintd-interfaces}/net.reactivated.Fprint.Manager.xml";
-          LOGIN1_MANGER_XML = "${pkgs.systemd}/share/dbus-1/interfaces/org.freedesktop.login1.Manager.xml";
         };
 
         commonArgs = {
@@ -76,7 +49,6 @@
             libxkbcommon
             pam
             dbus
-            fprintd
             gtk4
             glib
             gtk4-layer-shell
@@ -84,8 +56,6 @@
 
           nativeBuildInputs = with pkgs; [
             pkg-config
-            autoPatchelfHook # Add runtimeDependencies to rpath
-            git-lfs
           ];
         }
         // commonEnv;

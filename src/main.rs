@@ -1,20 +1,16 @@
 use clap::Parser;
 use fork::daemon;
 use fork::Fork;
-use gio::prelude::*;
-use glib::clone;
 use gtk::gdk;
+use gtk::glib::{self, clone};
 use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
 use log::{error, info};
-use tokio::sync::oneshot;
 
-use crate::dbus::fprint;
-use crate::tokio_runtime::runtime;
+use crate::fprint::check_fingerprint;
 use crate::ui::controls;
 
-mod dbus;
-mod tokio_runtime;
+mod fprint;
 mod ui;
 
 fn on_session_locked(_: &SessionLockInstance) {
@@ -67,17 +63,11 @@ fn activate(app: &gtk::Application) {
         move |lock, monitor| on_monitor_present(&lock, monitor.clone(), &app)
     ));
 
-    let (sender, reciever) = oneshot::channel();
-
-    runtime().spawn(clone!(async move {
-        let _ = sender.send(fprint(false).await);
-    }));
-
     glib::spawn_future_local(clone!(
         #[weak]
         lock,
         async move {
-            if reciever.await.unwrap_or(false) {
+            if check_fingerprint(false).await {
                 lock.unlock();
             }
         }
