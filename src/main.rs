@@ -1,14 +1,87 @@
-use app::{App, Flags};
 use clap::Parser;
-use fork::{daemon, Fork};
-use iced::Application;
+use fork::daemon;
+use fork::Fork;
+use gio::prelude::*;
+use glib::clone;
+use gtk::gdk;
+use gtk::prelude::*;
+use gtk4_session_lock::Instance as SessionLockInstance;
+use log::{error, info};
 
-pub mod app;
-pub mod auth;
-pub mod dbus;
-pub mod signal_handler;
-pub mod ui;
-pub mod user_image;
+fn on_session_locked(_: &SessionLockInstance) {
+    info!("Session locked successfully");
+}
+
+fn on_session_lock_failed(app: &gtk::Application) {
+    error!("The session could not be locked");
+    app.quit();
+}
+
+fn on_session_unlocked(app: &gtk::Application) {
+    info!("Session unlocked");
+    app.quit();
+}
+
+fn on_unlock_button_clicked(lock: &SessionLockInstance) {
+    lock.unlock();
+}
+
+fn on_monitor_present(lock: &SessionLockInstance, monitor: gdk::Monitor, app: &gtk::Application) {
+    // TODO: this function creates ui on each monitor. We need to present controls only on one
+    // and just beatuiful background on rest
+
+    let window = gtk::ApplicationWindow::new(app);
+
+    let bbox = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .spacing(10)
+        .build();
+
+    let label = gtk::Label::new(Some("GTK4 Session Lock Example"));
+    bbox.append(&label);
+
+    let button = gtk::Button::builder().label("Unlock").build();
+
+    button.connect_clicked(clone!(
+        #[weak]
+        lock,
+        move |_| on_unlock_button_clicked(&lock)
+    ));
+    bbox.append(&button);
+
+    window.set_child(Some(&bbox));
+
+    lock.assign_window_to_monitor(&window, &monitor);
+    // No need for window.present
+    // gtk_session_lock_instance_assign_window_to_monitor() does that
+}
+
+fn activate(app: &gtk::Application) {
+    let lock = SessionLockInstance::new();
+    lock.connect_locked(on_session_locked);
+    lock.connect_failed(clone!(
+        #[weak]
+        app,
+        move |_| on_session_lock_failed(&app)
+    ));
+
+    lock.connect_unlocked(clone!(
+        #[weak]
+        app,
+        move |_| on_session_unlocked(&app)
+    ));
+
+    lock.connect_monitor(clone!(
+        #[weak]
+        app,
+        move |lock, monitor| on_monitor_present(&lock, monitor.clone(), &app)
+    ));
+
+    // When this function exits session is not guaranteed to be locked
+    lock.lock();
+}
 
 fn main() {
     let args = Args::parse();
@@ -22,12 +95,19 @@ fn main() {
     }
 }
 
-fn start(args: Args) {
+fn start(_args: Args) {
     env_logger::init();
-    let settings = App::build_settings(Flags {
-        await_wakeup: args.await_wakeup,
-    });
-    App::run(settings).unwrap();
+    let _ = gtk::init();
+
+    if !gtk4_session_lock::is_supported() {
+        error!("Session lock not supported");
+        std::process::exit(1);
+    }
+
+    let app = gtk::Application::new(Some("org.notlebedev.shackle"), Default::default());
+
+    app.connect_activate(activate);
+    app.run();
 }
 
 #[derive(Parser)]

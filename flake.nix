@@ -3,15 +3,20 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    crane = {
-      url = "github:ipetkov/crane";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, crane, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      crane,
+      flake-utils,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -72,10 +77,9 @@
             pam
             dbus
             fprintd
-          ];
-
-          runtimeDependencies = with pkgs; [
-            wayland # sctk loads libwayland during runtime
+            gtk4
+            glib
+            gtk4-layer-shell
           ];
 
           nativeBuildInputs = with pkgs; [
@@ -83,57 +87,54 @@
             autoPatchelfHook # Add runtimeDependencies to rpath
             git-lfs
           ];
-        } // commonEnv;
+        }
+        // commonEnv;
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-        my-crate = craneLib.buildPackage (commonArgs // {
-          inherit cargoArtifacts;
-        });
+        shackle = craneLib.buildPackage (
+          commonArgs
+          // {
+            inherit cargoArtifacts;
+          }
+        );
       in
       {
         checks = {
-          inherit my-crate;
+          inherit shackle;
 
-          my-crate-clippy = craneLib.cargoClippy (commonArgs // {
-            inherit cargoArtifacts;
-            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
-          });
+          clippy = craneLib.cargoClippy (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+            }
+          );
 
-          my-crate-doc = craneLib.cargoDoc (commonArgs // {
-            inherit cargoArtifacts;
-          });
-
-          my-crate-fmt = craneLib.cargoFmt {
+          fmt = craneLib.cargoFmt {
             inherit src;
           };
-
-          my-crate-nextest = craneLib.cargoNextest (commonArgs // {
-            inherit cargoArtifacts;
-            partitions = 1;
-            partitionType = "count";
-          });
         };
 
-        packages.default = my-crate;
+        packages.default = shackle;
 
         apps.default = flake-utils.lib.mkApp {
-          drv = my-crate;
+          drv = shackle;
         };
 
-        devShells.default = craneLib.devShell ({
-          checks = self.checks.${system};
+        devShells.default = craneLib.devShell (
+          {
+            checks = self.checks.${system};
 
-          packages = with pkgs; [
-            rust-analyzer
-          ];
+            packages = with pkgs; [
+              rust-analyzer
+            ];
 
-          # Convinient logging for develpment
-          RUST_BACKTRACE = 1;
-          RUST_LOG = "info";
-
-          # When building with cargo autoPatchelf does not substitude
-          # wayland library from rpath
-          LD_LIBRARY_PATH = "${pkgs.wayland}/lib";
-        } // commonEnv);
-      });
+            # Convinient logging for develpment
+            RUST_BACKTRACE = 1;
+            RUST_LOG = "info";
+          }
+          // commonEnv
+        );
+      }
+    );
 }
