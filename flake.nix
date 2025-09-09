@@ -22,31 +22,14 @@
           inherit system;
         };
 
-        inherit (pkgs) lib;
-
         craneLib = (crane.mkLib nixpkgs.legacyPackages.${system});
         src = craneLib.cleanCargoSource (craneLib.path ./.);
-
-        llvm = pkgs.llvmPackages_17;
-
-        commonEnv = {
-          # Help bindgen find libclang.so
-          LIBCLANG_PATH = "${llvm.libclang.lib}/lib";
-          # Help bindgen find headers
-          CPATH = lib.strings.concatStringsSep ":" [
-            "${pkgs.pam}/include"
-            "${pkgs.glibc.dev}/include"
-            "${llvm.libclang.lib}/lib/clang/17/include"
-          ];
-        };
 
         commonArgs = {
           inherit src;
           strictDeps = true;
 
           buildInputs = with pkgs; [
-            libgcc
-            libxkbcommon
             pam
             dbus
             gtk4
@@ -57,8 +40,7 @@
           nativeBuildInputs = with pkgs; [
             pkg-config
           ];
-        }
-        // commonEnv;
+        };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
         shackle = craneLib.buildPackage (
@@ -87,24 +69,17 @@
 
         packages.default = shackle;
 
-        apps.default = flake-utils.lib.mkApp {
-          drv = shackle;
+        devShells.default = craneLib.devShell {
+          checks = self.checks.${system};
+
+          packages = with pkgs; [
+            rust-analyzer
+          ];
+
+          # Convinient logging for develpment
+          RUST_BACKTRACE = 1;
+          RUST_LOG = "info";
         };
-
-        devShells.default = craneLib.devShell (
-          {
-            checks = self.checks.${system};
-
-            packages = with pkgs; [
-              rust-analyzer
-            ];
-
-            # Convinient logging for develpment
-            RUST_BACKTRACE = 1;
-            RUST_LOG = "info";
-          }
-          // commonEnv
-        );
       }
     );
 }

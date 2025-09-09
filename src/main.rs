@@ -11,6 +11,7 @@ use crate::fprint::check_fingerprint;
 use crate::ui::controls;
 
 mod fprint;
+mod pam;
 mod ui;
 
 fn on_session_locked(_: &SessionLockInstance) {
