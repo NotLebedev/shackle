@@ -7,6 +7,13 @@ use gtk::gdk;
 use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
 use log::{error, info};
+use tokio::sync::oneshot;
+
+use crate::dbus::fprint;
+use crate::tokio_runtime::runtime;
+
+mod dbus;
+mod tokio_runtime;
 
 fn on_session_locked(_: &SessionLockInstance) {
     info!("Session locked successfully");
@@ -77,6 +84,22 @@ fn activate(app: &gtk::Application) {
         #[weak]
         app,
         move |lock, monitor| on_monitor_present(&lock, monitor.clone(), &app)
+    ));
+
+    let (sender, reciever) = oneshot::channel();
+
+    runtime().spawn(clone!(async move {
+        let _ = sender.send(fprint(false).await);
+    }));
+
+    glib::spawn_future_local(clone!(
+        #[weak]
+        lock,
+        async move {
+            if reciever.await.unwrap_or(false) {
+                lock.unlock();
+            }
+        }
     ));
 
     // When this function exits session is not guaranteed to be locked

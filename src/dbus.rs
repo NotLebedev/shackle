@@ -6,18 +6,14 @@ use dbus::{
 };
 use dbus_tokio::connection::new_system_sync;
 use fprint::{device::Device, manager::Manager};
-use futures::select;
-use iced::futures::StreamExt;
+use futures::{select, StreamExt};
 use log::{info, warn};
 
-use crate::{
-    app::Message,
-    dbus::{fprint::device::DeviceVerifyStatus, login1::ManagerPrepareForSleep},
-};
+use crate::dbus::{fprint::device::DeviceVerifyStatus, login1::ManagerPrepareForSleep};
 
-pub async fn fprint(await_wakeup: bool) -> Message {
+pub async fn fprint(await_wakeup: bool) -> bool {
     let Ok((resource, conn)) = new_system_sync() else {
-        return Message::Ignore;
+        return false;
     };
 
     let _handle = tokio::spawn(async {
@@ -38,7 +34,7 @@ pub async fn fprint(await_wakeup: bool) -> Message {
 
     let Ok(dev) = fprint_manager.get_default_device().await else {
         info!("No default fingerprint device. Check if fprintd-tod is installed.");
-        return Message::Ignore;
+        return false;
     };
 
     info!("Default device: {dev:?}");
@@ -54,7 +50,7 @@ pub async fn fprint(await_wakeup: bool) -> Message {
     // The documentation advises to use this option over explicit username
     if let Err(err) = device.claim("").await {
         info!("Failed to claim device: {err}");
-        return Message::Ignore;
+        return false;
     };
 
     info!("Claimed fingerprint device. Starting verification");
@@ -62,17 +58,17 @@ pub async fn fprint(await_wakeup: bool) -> Message {
     loop {
         if let Err(err) = device.verify_start("any").await {
             info!("Failed to start verification: {err}");
-            return Message::Ignore;
+            return false;
         };
 
         let Ok(result) = attempt_verification(conn.clone()).await else {
-            return Message::Ignore;
+            return false;
         };
 
         match result {
             VerifyResult::Match => {
                 let _ = device.release().await;
-                return Message::Unlock;
+                return true;
             }
             VerifyResult::NoMatch | VerifyResult::UnknownError | VerifyResult::UnexpectedWakeup => {
                 if let Err(err) = device.verify_stop().await {
@@ -82,7 +78,7 @@ pub async fn fprint(await_wakeup: bool) -> Message {
             VerifyResult::Disconnected => {
                 warn!("Fingerprint device disconnected");
                 let _ = device.release().await;
-                return Message::Ignore;
+                return false;
             }
             VerifyResult::Suspended => {
                 info!("Device suspending. Pausing fingerprint verification.");
