@@ -43,7 +43,7 @@ fn on_monitor_present(lock: &SessionLockInstance, monitor: gdk::Monitor, app: &g
     // gtk_session_lock_instance_assign_window_to_monitor() does that
 }
 
-fn activate(app: &gtk::Application) {
+fn activate(app: &gtk::Application, args: Args) {
     let lock = SessionLockInstance::new();
     lock.connect_locked(on_session_locked);
     lock.connect_failed(clone!(
@@ -68,7 +68,7 @@ fn activate(app: &gtk::Application) {
         #[weak]
         lock,
         async move {
-            if check_fingerprint(false).await {
+            if check_fingerprint(args.await_wakeup).await {
                 lock.unlock();
             }
         }
@@ -99,7 +99,7 @@ fn main() {
     }
 }
 
-fn start(_args: Args) {
+fn start(args: Args) {
     env_logger::init();
     let _ = gtk::init();
 
@@ -110,11 +110,11 @@ fn start(_args: Args) {
 
     let app = gtk::Application::new(Some("org.notlebedev.shackle"), Default::default());
 
-    app.connect_activate(activate);
+    app.connect_activate(move |app| activate(app, args.clone()));
     app.run_with_args(&Vec::<String>::new());
 }
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(version, about, long_about = None)]
 struct Args {
     /// Fork off locker process
