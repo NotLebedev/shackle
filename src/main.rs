@@ -1,3 +1,6 @@
+mod auth;
+mod ui;
+
 use clap::Parser;
 use fork::daemon;
 use fork::Fork;
@@ -7,12 +10,9 @@ use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
 use log::{error, info};
 
-use crate::fprint::check_fingerprint;
+use crate::auth::fprint::check_fingerprint;
+use crate::auth::signal::wait_signal;
 use crate::ui::controls;
-
-mod fprint;
-mod pam;
-mod ui;
 
 fn on_session_locked(_: &SessionLockInstance) {
     info!("Session locked successfully");
@@ -78,8 +78,7 @@ fn activate(app: &gtk::Application) {
         #[weak]
         lock,
         async move {
-            glib::unix_signal_future(nix::sys::signal::Signal::SIGUSR1 as i32).await;
-            info!("Recieved SIGUSR1.");
+            wait_signal().await;
             lock.unlock();
         }
     ));

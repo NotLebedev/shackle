@@ -3,7 +3,7 @@ use gtk::glib::{self, clone};
 use gtk::prelude::{BoxExt, ButtonExt, EditableExt, WidgetExt};
 use gtk4_session_lock::Instance as SessionLockInstance;
 
-use crate::pam::check_password;
+use crate::auth::pam::check_password;
 
 async fn control_input_activated(
     password_entry: &gtk::PasswordEntry,
