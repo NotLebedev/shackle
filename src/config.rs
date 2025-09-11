@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{path::PathBuf, sync::LazyLock};
 
 use clap::Parser;
 
@@ -20,4 +20,9 @@ pub struct Args {
     /// after devices goes to sleep
     #[arg(short, long)]
     pub await_wakeup: bool,
+    /// Image or video to display on background
+    ///
+    /// Currently only .jpg/.jpeg and .mp4 files are supported
+    #[arg(short, long)]
+    pub background: Option<PathBuf>,
 }

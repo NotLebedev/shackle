@@ -12,6 +12,8 @@ use log::{error, info};
 
 use crate::auth::fprint::check_fingerprint;
 use crate::auth::signal::wait_signal;
+use crate::config::config;
+use crate::ui::background;
 use crate::ui::controls;
 
 fn on_session_locked(_: &SessionLockInstance) {
@@ -34,9 +36,11 @@ fn on_monitor_present(lock: &SessionLockInstance, monitor: gdk::Monitor, app: &g
 
     let window = gtk::ApplicationWindow::new(app);
 
-    let controls = controls(lock);
+    let bg_overlay = gtk::Overlay::new();
+    bg_overlay.set_child(Some(&background()));
+    bg_overlay.add_overlay(&controls(lock));
 
-    window.set_child(Some(&controls));
+    window.set_child(Some(&bg_overlay));
 
     lock.assign_window_to_monitor(&window, &monitor);
     // No need for window.present
@@ -68,7 +72,7 @@ fn activate(app: &gtk::Application) {
         #[weak]
         lock,
         async move {
-            if check_fingerprint(args.await_wakeup).await {
+            if check_fingerprint(config().await_wakeup).await {
                 lock.unlock();
             }
         }

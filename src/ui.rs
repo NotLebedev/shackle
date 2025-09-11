@@ -1,9 +1,13 @@
+use std::path::Path;
+
+use gtk::gdk;
 use gtk::gio;
 use gtk::glib::{self, clone};
-use gtk::prelude::{BoxExt, ButtonExt, EditableExt, WidgetExt};
+use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
 
 use crate::auth::pam::check_password;
+use crate::config::config;
 
 async fn control_input_activated(
     password_entry: &gtk::PasswordEntry,
@@ -79,4 +83,32 @@ pub fn controls(lock: &SessionLockInstance) -> gtk::Widget {
     bbox.append(&button);
 
     bbox.into()
+}
+
+pub fn background() -> gtk::Widget {
+    let bg_paintable = config()
+        .background
+        .as_ref()
+        .and_then(|bg| load_background_paintable(&bg));
+
+    let video_picture = gtk::Picture::new();
+    video_picture.set_paintable(bg_paintable.as_ref());
+    video_picture.set_content_fit(gtk::ContentFit::Cover);
+
+    video_picture.into()
+}
+
+fn load_background_paintable(src: &Path) -> Option<gtk::gdk::Paintable> {
+    match src.extension().and_then(|os_str| os_str.to_str()) {
+        Some("jpg" | "jpeg") => gdk::Texture::from_file(&gio::File::for_path(src))
+            .ok()
+            .map(gdk::Texture::into),
+        Some("mp4") => {
+            let bg_video = gtk::MediaFile::for_file(&gio::File::for_path(src));
+            bg_video.set_loop(true);
+            bg_video.set_playing(true);
+            Some(bg_video.into())
+        }
+        _ => None,
+    }
 }
