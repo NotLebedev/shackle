@@ -15,6 +15,7 @@ use crate::auth::signal::wait_signal;
 use crate::config::config;
 use crate::ui::background;
 use crate::ui::controls;
+use crate::ui::load_css;
 
 fn on_session_locked(_: &SessionLockInstance) {
     info!("Session locked successfully");
@@ -112,6 +113,7 @@ fn start() {
 
     let app = gtk::Application::new(Some("org.notlebedev.shackle"), Default::default());
 
+    app.connect_startup(|_| load_css());
     app.connect_activate(activate);
     app.run_with_args(&Vec::<String>::new());
 }

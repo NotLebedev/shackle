@@ -1,0 +1,18 @@
+use std::fs;
+use std::path::Path;
+
+const STYLE_DIR: &'static str = "src/style";
+const STYLE_MAIN: &'static str = "src/style/main.scss";
+
+fn main() {
+    let options = grass::Options::default()
+        .load_path(STYLE_DIR)
+        .style(grass::OutputStyle::Compressed);
+    let css = grass::from_path(STYLE_MAIN, &options).expect("Failed to compile SCSS");
+
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("style.css");
+    fs::write(&dest_path, css).expect("Failed to write compiled CSS");
+
+    println!("cargo:rerun-if-changed={}", STYLE_DIR);
+}

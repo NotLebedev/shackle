@@ -19,4 +19,4 @@ gtk = { package = "gtk4", version = "0.10.0", features = [ "v4_18" ] }
 gtk4-session-lock = { version = "0.3.0", features = [ "v1_2" ] }
 
 [build-dependencies]
-dbus-codegen = "0.10.0"
+grass = "0.13.4"

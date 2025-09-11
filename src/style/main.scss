@@ -1,0 +1,8 @@
+$controls-bg-color: rgba(64, 64, 64, 0.6);
+$controls-box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+
+controls {
+    background-color: $controls-bg-color;
+    box-shadow: $controls-box-shadow;
+    padding: 3rem;
+}

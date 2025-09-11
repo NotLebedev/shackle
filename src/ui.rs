@@ -5,9 +5,26 @@ use gtk::gio;
 use gtk::glib::{self, clone};
 use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
+use log::error;
 
 use crate::auth::pam::check_password;
 use crate::config::config;
+
+const CSS_SOURCE: &'static str = include_str!(concat!(env!("OUT_DIR"), "/style.css"));
+
+pub fn load_css() {
+    if let Some(display) = gdk::Display::default() {
+        let css = gtk::CssProvider::new();
+        css.load_from_string(CSS_SOURCE);
+        gtk::style_context_add_provider_for_display(
+            &display,
+            &css,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    } else {
+        error!("Failed to load css, could not get gdk::Display");
+    }
+}
 
 async fn control_input_activated(
     password_entry: &gtk::PasswordEntry,
@@ -38,6 +55,7 @@ async fn control_input_activated(
 
 pub fn controls(lock: &SessionLockInstance) -> gtk::Widget {
     let bbox = gtk::Box::builder()
+        .css_name("controls")
         .orientation(gtk::Orientation::Vertical)
         .halign(gtk::Align::Center)
         .valign(gtk::Align::Center)
