@@ -1,7 +1,7 @@
 mod auth;
+mod config;
 mod ui;
 
-use clap::Parser;
 use fork::daemon;
 use fork::Fork;
 use gtk::gdk;
@@ -43,7 +43,7 @@ fn on_monitor_present(lock: &SessionLockInstance, monitor: gdk::Monitor, app: &g
     // gtk_session_lock_instance_assign_window_to_monitor() does that
 }
 
-fn activate(app: &gtk::Application, args: Args) {
+fn activate(app: &gtk::Application) {
     let lock = SessionLockInstance::new();
     lock.connect_locked(on_session_locked);
     lock.connect_failed(clone!(
@@ -88,18 +88,16 @@ fn activate(app: &gtk::Application, args: Args) {
 }
 
 fn main() {
-    let args = Args::parse();
-
-    if args.daemonize {
+    if config().daemonize {
         if let Ok(Fork::Child) = daemon(true, true) {
-            start(args);
+            start();
         }
     } else {
-        start(args);
+        start();
     }
 }
 
-fn start(args: Args) {
+fn start() {
     env_logger::init();
     let _ = gtk::init();
 
@@ -110,20 +108,6 @@ fn start(args: Args) {
 
     let app = gtk::Application::new(Some("org.notlebedev.shackle"), Default::default());
 
-    app.connect_activate(move |app| activate(app, args.clone()));
+    app.connect_activate(activate);
     app.run_with_args(&Vec::<String>::new());
-}
-
-#[derive(Parser, Clone)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Fork off locker process
-    #[arg(short, long)]
-    daemonize: bool,
-    /// Start fingerprint verification only after device wakes up
-    ///
-    /// Useful if fingerprint verification does not work (or is delayed)
-    /// after devices goes to sleep
-    #[arg(short, long)]
-    await_wakeup: bool,
 }
