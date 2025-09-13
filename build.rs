@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-const STYLE_DIR: &'static str = "src/style";
-const STYLE_MAIN: &'static str = "src/style/main.scss";
+const STYLE_DIR: &'static str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/style");
+const STYLE_MAIN: &'static str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/style/main.scss");
 
 fn main() {
     let options = grass::Options::default()

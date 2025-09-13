@@ -23,7 +23,15 @@
         };
 
         craneLib = (crane.mkLib nixpkgs.legacyPackages.${system});
-        src = craneLib.cleanCargoSource (craneLib.path ./.);
+        src =
+          let
+            root = ./.;
+            fileset = pkgs.lib.fileset.unions [
+              (craneLib.fileset.commonCargoSources ./.)
+              (pkgs.lib.fileset.fileFilter (file: file.hasExt "scss") ./.)
+            ];
+          in
+          pkgs.lib.fileset.toSource { inherit root fileset; };
 
         commonArgs = {
           inherit src;
