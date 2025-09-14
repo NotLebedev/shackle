@@ -187,6 +187,8 @@ async fn wait_for_wakeup<'a>(login1_manager: Login1ManagerProxy<'a>) {
         return;
     };
 
+    info!("Waiting for wakeup.");
+
     while let Some(msg) = prepare_for_sleep_stream.next().await {
         let Ok(args) = msg.args() else {
             info!("Failed to parse prepare for sleep message. Check dbus settings.");
@@ -211,17 +213,17 @@ async fn wait_for_wakeup<'a>(login1_manager: Login1ManagerProxy<'a>) {
 // https://dbus2.github.io/zbus/client.html#generating-the-trait-from-an-xml-interface
 
 #[proxy(
-    default_service = "net.reactivated.Fprint",
+    interface = "net.reactivated.Fprint.Manager",
     default_path = "/net/reactivated/Fprint/Manager",
-    interface = "net.reactivated.Fprint.Manager"
+    default_service = "net.reactivated.Fprint"
 )]
 pub trait FprintManager {
     fn get_default_device(&self) -> zbus::Result<zbus::zvariant::OwnedObjectPath>;
 }
 
 #[proxy(
-    default_service = "net.reactivated.Fprint",
     interface = "net.reactivated.Fprint.Device",
+    default_service = "net.reactivated.Fprint",
     assume_defaults = true
 )]
 pub trait FprintDevice {
@@ -235,7 +237,12 @@ pub trait FprintDevice {
     fn verify_status(&self, result: &str, done: bool) -> zbus::Result<()>;
 }
 
-#[proxy(interface = "org.freedesktop.login1.Manager", assume_defaults = true)]
+#[proxy(
+    interface = "org.freedesktop.login1.Manager",
+    default_path = "/org/freedesktop/login1",
+    default_service = "org.freedesktop.login1",
+    assume_defaults = true
+)]
 pub trait Login1Manager {
     #[zbus(signal)]
     fn prepare_for_sleep(&self, start: bool) -> zbus::Result<()>;
