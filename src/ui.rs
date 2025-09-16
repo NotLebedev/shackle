@@ -1,3 +1,5 @@
+use std::fs;
+use std::fs::DirEntry;
 use std::path::Path;
 
 use gtk::gdk;
@@ -5,7 +7,10 @@ use gtk::gio;
 use gtk::glib::{self, clone};
 use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
+use itertools::Itertools;
 use log::error;
+use log::info;
+use rand::seq::IndexedRandom;
 
 use crate::auth::pam::check_password;
 use crate::config::config;
@@ -128,6 +133,36 @@ pub fn background() -> gtk::Widget {
 }
 
 fn load_background_paintable(src: &Path) -> Option<gtk::gdk::Paintable> {
+    let src = if src.is_dir() {
+        // Pick random supported file inside the dir
+        let supported_children: Vec<DirEntry> = fs::read_dir(src)
+            .ok()?
+            .flat_map(|entry| entry.ok())
+            .filter(|child| {
+                if let Some(ext) = child.path().extension().and_then(|ext| ext.to_str()) {
+                    ["jpg", "jpeg", "mp4"].contains(&ext)
+                } else {
+                    false
+                }
+            })
+            .collect();
+
+        info!(
+            "Available backgrounds: {:?}",
+            supported_children
+                .iter()
+                .map(DirEntry::path)
+                .map(|p| p.to_string_lossy().into_owned())
+                .join(", ")
+        );
+
+        &supported_children.choose(&mut rand::rng())?.path()
+    } else {
+        src
+    };
+
+    info!("Using {} as background", src.to_string_lossy());
+
     match src.extension().and_then(|os_str| os_str.to_str()) {
         Some("jpg" | "jpeg") => gdk::Texture::from_file(&gio::File::for_path(src))
             .ok()

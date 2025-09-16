@@ -20,9 +20,10 @@ pub struct Args {
     /// after devices goes to sleep
     #[arg(short, long)]
     pub await_wakeup: bool,
-    /// Image or video to display on background
+    /// Image, video or directory to display on background
     ///
-    /// Currently only .jpg/.jpeg and .mp4 files are supported
+    /// Currently only .jpg/.jpeg and .mp4 files are supported.
+    /// If path is a directory random supported content will be selected
     #[arg(short, long)]
     pub background: Option<PathBuf>,
 }
