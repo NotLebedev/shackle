@@ -1,8 +1,58 @@
-$controls-bg-color: rgba(64, 64, 64, 0.6);
-$controls-box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+$window-radius: 16px;
+$bg-window: #151516;
+$window-padding: 24px;
+$box-shadow-outer: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 
-controls {
-    background-color: $controls-bg-color;
-    box-shadow: $controls-box-shadow;
-    padding: 3rem;
+$color-transition:
+    color 0.1s,
+    background-color 0.1s,
+    border-color 0.1s;
+
+$el-radius: 8px;
+$el-neutral: #202021;
+$el-border: #3c3c3e;
+$el-hover: #0f426c;
+$el-active: #51a4e7;
+
+.controls-window {
+    background-color: $bg-window;
+    box-shadow: $box-shadow-outer;
+    border-radius: $window-radius;
+    padding: $window-padding;
+
+    min-width: 210px;
+}
+
+button {
+    all: unset;
+    padding: 10px;
+    background-color: $el-neutral;
+    border-radius: $el-radius;
+    transition: $color-transition;
+
+    &:hover,
+    &:focus-within {
+        background-color: $el-hover;
+    }
+
+    &:active {
+        background-color: $el-active;
+    }
+}
+
+entry {
+    all: unset;
+    background-color: $el-neutral;
+    border-radius: $el-radius;
+    padding: 10px;
+    border: 2px solid $el-border;
+    transition: $color-transition;
+
+    &:hover,
+    &:focus-within {
+        border-color: $el-hover;
+    }
+
+    &.password {
+    }
 }

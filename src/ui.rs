@@ -26,6 +26,16 @@ pub fn load_css() {
     }
 }
 
+pub fn set_gtk_settings() {
+    let Some(settings) = gtk::Settings::default() else {
+        error!("Failed to get GTK settings");
+        return;
+    };
+
+    settings.set_property("gtk-cursor-aspect-ratio", 0.04);
+    settings.set_property("gtk-font-name", "Inter 12");
+}
+
 async fn control_input_activated(
     password_entry: &gtk::PasswordEntry,
     button: &gtk::Button,
@@ -55,16 +65,17 @@ async fn control_input_activated(
 
 pub fn controls(lock: &SessionLockInstance) -> gtk::Widget {
     let bbox = gtk::Box::builder()
-        .css_name("controls")
+        .css_classes(["controls-window"])
         .orientation(gtk::Orientation::Vertical)
         .halign(gtk::Align::Center)
         .valign(gtk::Align::Center)
-        .spacing(10)
+        .spacing(24)
         .build();
 
     let password_entry = gtk::PasswordEntry::new();
     let button = gtk::Button::builder().label("Unlock").build();
 
+    password_entry.set_placeholder_text(Some("Password"));
     password_entry.connect_show(|password_entry| {
         password_entry.grab_focus();
     });
