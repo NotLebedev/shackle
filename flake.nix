@@ -51,6 +51,7 @@
 
           nativeBuildInputs = with pkgs; [
             pkg-config
+            wrapGAppsHook4
           ];
         };
 
