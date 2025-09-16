@@ -7,7 +7,10 @@ const STYLE_MAIN: &'static str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/style
 fn main() {
     let options = grass::Options::default()
         .load_path(STYLE_DIR)
-        .style(grass::OutputStyle::Compressed);
+        // GTK likes expanded style more.
+        // Size is not that big of a deal, especially
+        // since its compiles into the binary
+        .style(grass::OutputStyle::Expanded);
     let css = grass::from_path(STYLE_MAIN, &options).expect("Failed to compile SCSS");
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
