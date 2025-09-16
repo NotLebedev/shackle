@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod sole_instance;
 mod ui;
 
 use fork::daemon;
@@ -8,11 +9,13 @@ use gtk::gdk;
 use gtk::glib::{self, clone};
 use gtk::prelude::*;
 use gtk4_session_lock::Instance as SessionLockInstance;
+use log::warn;
 use log::{error, info};
 
 use crate::auth::fprint::check_fingerprint;
 use crate::auth::signal::wait_signal;
 use crate::config::config;
+use crate::sole_instance::lock_sole_instance;
 use crate::ui::background;
 use crate::ui::controls;
 use crate::ui::load_css;
@@ -105,6 +108,12 @@ fn main() {
 
 fn start() {
     env_logger::init();
+
+    let Some(_lock) = lock_sole_instance() else {
+        warn!("Another instance of shackle is running. Terminating");
+        return;
+    };
+
     let _ = gtk::init();
 
     if !gtk4_session_lock::is_supported() {
