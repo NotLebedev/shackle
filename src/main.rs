@@ -1,7 +1,9 @@
 mod auth;
 mod config;
-mod sole_instance;
+mod instance;
 mod ui;
+
+use std::rc::Rc;
 
 use fork::daemon;
 use fork::Fork;
@@ -15,7 +17,8 @@ use log::{error, info};
 use crate::auth::fprint::check_fingerprint;
 use crate::auth::signal::wait_signal;
 use crate::config::config;
-use crate::sole_instance::lock_sole_instance;
+use crate::instance::lock_sole_instance;
+use crate::instance::AppHold;
 use crate::ui::background;
 use crate::ui::controls;
 use crate::ui::load_css;
@@ -30,8 +33,9 @@ fn on_session_lock_failed(app: &gtk::Application) {
     app.quit();
 }
 
-fn on_session_unlocked(app: &gtk::Application) {
+fn on_session_unlocked(app: &gtk::Application, hold: &AppHold) {
     info!("Session unlocked");
+    hold.release();
     app.quit();
 }
 
@@ -62,9 +66,16 @@ fn activate(app: &gtk::Application) {
     ));
 
     lock.connect_unlocked(clone!(
+        #[strong(rename_to = hold)]
+        // Hold app opened not until last window closes but
+        // untill session is unlocked.
+        //
+        // This is needed to prevent shackle from exiting when
+        // all monitors disconnect and bricking session
+        Rc::new(AppHold::new(app)),
         #[weak]
         app,
-        move |_| on_session_unlocked(&app)
+        move |_| on_session_unlocked(&app, &hold)
     ));
 
     lock.connect_monitor(clone!(
@@ -129,4 +140,5 @@ fn start() {
     });
     app.connect_activate(activate);
     app.run_with_args(&Vec::<String>::new());
+    info!("Lock exiting");
 }

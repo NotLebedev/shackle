@@ -1,5 +1,6 @@
-use std::{env, fs, path::PathBuf};
+use std::{cell::Cell, env, fs, path::PathBuf};
 
+use gtk::gio::{self, prelude::ApplicationExtManual};
 use log::error;
 use nix::fcntl::{Flock, FlockArg};
 
@@ -35,4 +36,25 @@ pub fn lock_sole_instance() -> Option<Lock> {
     lock.try_lock().ok()?;
 
     Some(Lock { _lock: lock })
+}
+
+pub struct AppHold {
+    hold: Cell<Option<gio::ApplicationHoldGuard>>,
+}
+
+impl AppHold {
+    pub fn new(app: &gtk::Application) -> Self {
+        Self {
+            hold: Cell::new(Some(app.hold())),
+        }
+    }
+
+    /// Release associated [`gio::ApplicationHoldGuard`]
+    ///
+    /// This operation is idempotent
+    pub fn release(&self) {
+        if let Some(hold) = self.hold.replace(None) {
+            drop(hold);
+        }
+    }
 }
